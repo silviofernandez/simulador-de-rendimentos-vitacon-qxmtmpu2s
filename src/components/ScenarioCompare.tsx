@@ -3,6 +3,8 @@ import { formatCurrency, formatPercent } from '@/lib/calculos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/CurrencyInput'
+import { PercentInput } from '@/components/PercentInput'
 import { Label } from '@/components/ui/label'
 import { Slider } from '@/components/ui/slider'
 import { GitCompare, Sparkles, TrendingUp, ArrowRight, RotateCcw } from 'lucide-react'
@@ -100,14 +102,10 @@ export function ScenarioCompare({
                           {formatCurrency(cen.diaria)}
                         </span>
                       </div>
-                      <Input
-                        type="number"
+                      <CurrencyInput
                         value={cen.diaria}
-                        onChange={(e) =>
-                          onAtualizarCenario(cen.id, 'diaria', Number(e.target.value))
-                        }
+                        onChange={(val) => onAtualizarCenario(cen.id, 'diaria', val)}
                         className="h-8 rounded-lg border-[#E3DFD6] text-xs font-medium"
-                        step={10}
                       />
                     </div>
 
@@ -141,16 +139,13 @@ export function ScenarioCompare({
                           {cen.taxaAdminHousiPerc}%
                         </span>
                       </div>
-                      <Input
-                        type="number"
+                      <PercentInput
                         value={cen.taxaAdminHousiPerc}
-                        onChange={(e) =>
-                          onAtualizarCenario(cen.id, 'taxaAdminHousiPerc', Number(e.target.value))
-                        }
+                        onChange={(val) => onAtualizarCenario(cen.id, 'taxaAdminHousiPerc', val)}
+                        decimals={1}
+                        min={5}
+                        max={35}
                         className="h-8 rounded-lg border-[#E3DFD6] text-xs font-medium"
-                        step={0.5}
-                        min={10}
-                        max={25}
                       />
                     </div>
                   </div>

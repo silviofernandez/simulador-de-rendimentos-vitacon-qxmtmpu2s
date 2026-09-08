@@ -7,6 +7,8 @@ import { formatCurrency, formatPercent } from '@/lib/calculos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/CurrencyInput'
+import { PercentInput } from '@/components/PercentInput'
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Landmark, Info, Calculator, Percent } from 'lucide-react'
@@ -60,11 +62,10 @@ export function FinancingCard({
     })
   }
 
-  const handleParcelaManualChange = (valStr: string) => {
-    const num = valStr === '' ? undefined : Number(valStr)
+  const handleParcelaManualChange = (val: number) => {
     onChange({
       ...parametros,
-      valorParcelaManual: num && num > 0 ? num : undefined,
+      valorParcelaManual: val > 0 ? val : undefined,
     })
   }
 
@@ -157,13 +158,11 @@ export function FinancingCard({
                   </button>
                 )}
               </div>
-              <Input
+              <CurrencyInput
                 id="val-financ"
-                type="number"
                 value={parametros.valorFinanciado}
-                onChange={(e) => handleValorFinanciadoChange(Number(e.target.value))}
+                onChange={handleValorFinanciadoChange}
                 className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                step={1000}
               />
             </div>
 
@@ -171,15 +170,14 @@ export function FinancingCard({
               <Label htmlFor="taxa-financ" className="text-xs font-semibold text-[#1F2A24]">
                 Taxa de Juros (% a.a.)
               </Label>
-              <Input
+              <PercentInput
                 id="taxa-financ"
-                type="number"
                 value={parametros.taxaJurosAnualPerc}
-                onChange={(e) => handleTaxaChange(Number(e.target.value))}
+                onChange={handleTaxaChange}
+                decimals={1}
+                min={0.1}
+                max={50}
                 className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                step={0.1}
-                min={1}
-                max={30}
               />
             </div>
 
@@ -190,8 +188,14 @@ export function FinancingCard({
               <Input
                 id="prazo-financ"
                 type="number"
-                value={parametros.prazoAnos}
-                onChange={(e) => handlePrazoChange(Number(e.target.value))}
+                value={parametros.prazoAnos === 0 ? '' : parametros.prazoAnos}
+                onFocus={(e) => {
+                  if (parametros.prazoAnos === 0) e.target.value = ''
+                }}
+                onChange={(e) => {
+                  const val = e.target.value
+                  handlePrazoChange(val === '' ? 0 : Number(val))
+                }}
                 className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
                 step={1}
                 min={1}
@@ -213,12 +217,12 @@ export function FinancingCard({
                 </p>
               </div>
               <div className="w-full sm:w-44">
-                <Input
+                <CurrencyInput
                   id="override-parcela"
-                  type="number"
                   placeholder={formatCurrency(resultado.parcelaMedia)}
-                  value={parametros.valorParcelaManual ?? ''}
-                  onChange={(e) => handleParcelaManualChange(e.target.value)}
+                  value={parametros.valorParcelaManual ?? 0}
+                  allowZero={false}
+                  onChange={handleParcelaManualChange}
                   className="h-9 rounded-lg border-[#E3DFD6] bg-white text-xs font-medium focus-visible:ring-[#0F6B4F]"
                 />
               </div>

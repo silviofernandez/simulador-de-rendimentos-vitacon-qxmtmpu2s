@@ -3,6 +3,7 @@ import { formatCurrency, formatPercent } from '@/lib/calculos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { Slider } from '@/components/ui/slider'
 import { Receipt, Percent, ShieldCheck } from 'lucide-react'
 
@@ -107,13 +108,11 @@ export function CustosDetalhadosCard({
             <Label htmlFor="custo-condominio" className="text-xs font-semibold text-[#1F2A24]">
               Condomínio (R$)
             </Label>
-            <Input
+            <CurrencyInput
               id="custo-condominio"
-              type="number"
               value={custos.condominio}
-              onChange={(e) => handleFieldChange('condominio', Number(e.target.value))}
+              onChange={(val) => handleFieldChange('condominio', val)}
               className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-              step={10}
             />
           </div>
 
@@ -121,13 +120,11 @@ export function CustosDetalhadosCard({
             <Label htmlFor="custo-iptu" className="text-xs font-semibold text-[#1F2A24]">
               IPTU Mensal (R$)
             </Label>
-            <Input
+            <CurrencyInput
               id="custo-iptu"
-              type="number"
               value={custos.iptu}
-              onChange={(e) => handleFieldChange('iptu', Number(e.target.value))}
+              onChange={(val) => handleFieldChange('iptu', val)}
               className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-              step={10}
             />
           </div>
 
@@ -135,13 +132,11 @@ export function CustosDetalhadosCard({
             <Label htmlFor="custo-wifi" className="text-xs font-semibold text-[#1F2A24]">
               Wi-Fi + TV Cabo (R$)
             </Label>
-            <Input
+            <CurrencyInput
               id="custo-wifi"
-              type="number"
               value={custos.wifiTv}
-              onChange={(e) => handleFieldChange('wifiTv', Number(e.target.value))}
+              onChange={(val) => handleFieldChange('wifiTv', val)}
               className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-              step={10}
             />
           </div>
 
@@ -149,13 +144,11 @@ export function CustosDetalhadosCard({
             <Label htmlFor="custo-energia" className="text-xs font-semibold text-[#1F2A24]">
               Energia & Água (R$)
             </Label>
-            <Input
+            <CurrencyInput
               id="custo-energia"
-              type="number"
               value={custos.energiaAgua}
-              onChange={(e) => handleFieldChange('energiaAgua', Number(e.target.value))}
+              onChange={(val) => handleFieldChange('energiaAgua', val)}
               className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-              step={10}
             />
           </div>
 
@@ -163,14 +156,12 @@ export function CustosDetalhadosCard({
             <Label htmlFor="custo-outras" className="text-xs font-semibold text-[#1F2A24]">
               Outras Despesas Operacionais (R$)
             </Label>
-            <Input
+            <CurrencyInput
               id="custo-outras"
-              type="number"
               value={custos.outrasDespesas}
-              onChange={(e) => handleFieldChange('outrasDespesas', Number(e.target.value))}
+              onChange={(val) => handleFieldChange('outrasDespesas', val)}
               className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-              placeholder="0 (lavanderia, manutenção, etc.)"
-              step={10}
+              placeholder="0,00 (lavanderia, manutenção, etc.)"
             />
           </div>
         </div>

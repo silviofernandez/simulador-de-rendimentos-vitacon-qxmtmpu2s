@@ -17,6 +17,8 @@ import {
 } from '@/lib/calculos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { CurrencyInput } from '@/components/CurrencyInput'
+import { PercentInput } from '@/components/PercentInput'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -652,13 +654,11 @@ export default function IndexPage() {
                   <Label htmlFor="val-imovel" className="text-xs font-semibold text-[#1F2A24]">
                     Valor do Imóvel (R$)
                   </Label>
-                  <Input
+                  <CurrencyInput
                     id="val-imovel"
-                    type="number"
                     value={valorImovel}
-                    onChange={(e) => setValorImovel(Number(e.target.value))}
+                    onChange={setValorImovel}
                     className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                    step={1000}
                   />
                 </div>
 
@@ -669,11 +669,17 @@ export default function IndexPage() {
                   <Input
                     id="metragem-studio"
                     type="number"
-                    value={metragem}
-                    onChange={(e) => setMetragem(Number(e.target.value))}
+                    value={metragem === 0 ? '' : metragem}
+                    onFocus={(e) => {
+                      if (metragem === 0) e.target.value = ''
+                    }}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setMetragem(v === '' ? 0 : Number(v))
+                    }}
                     className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                    min={10}
-                    max={150}
+                    min={1}
+                    max={500}
                     step={0.5}
                   />
                 </div>
@@ -685,15 +691,14 @@ export default function IndexPage() {
                   <Label htmlFor="perc-chaves" className="text-xs font-semibold text-[#1F2A24]">
                     Entrada / Chaves (%)
                   </Label>
-                  <Input
+                  <PercentInput
                     id="perc-chaves"
-                    type="number"
                     value={percentualAteChaves}
-                    onChange={(e) => setPercentualAteChaves(Number(e.target.value))}
+                    onChange={setPercentualAteChaves}
+                    decimals={1}
+                    min={0}
+                    max={100}
                     className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                    min={10}
-                    max={90}
-                    step={1}
                   />
                 </div>
 
@@ -701,13 +706,11 @@ export default function IndexPage() {
                   <Label htmlFor="val-decoracao" className="text-xs font-semibold text-[#1F2A24]">
                     Decoração Housi (R$)
                   </Label>
-                  <Input
+                  <CurrencyInput
                     id="val-decoracao"
-                    type="number"
                     value={valorDecoracao}
-                    onChange={(e) => setValorDecoracao(Number(e.target.value))}
+                    onChange={setValorDecoracao}
                     className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                    step={1000}
                   />
                 </div>
               </div>
@@ -756,13 +759,11 @@ export default function IndexPage() {
                   </Label>
                   <span className="text-[11px] text-[#5E6E64]">Bairro: {bairro}</span>
                 </div>
-                <Input
+                <CurrencyInput
                   id="val-diaria"
-                  type="number"
                   value={valorDiaria}
-                  onChange={(e) => setValorDiaria(Number(e.target.value))}
+                  onChange={setValorDiaria}
                   className="h-10 rounded-xl border-[#E3DFD6] text-xs font-medium focus-visible:ring-[#0F6B4F]"
-                  step={10}
                 />
               </div>
 
