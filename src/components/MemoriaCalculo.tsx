@@ -14,7 +14,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatCurrency, formatPercent } from '@/lib/calculos'
-import { FileText, Calculator } from 'lucide-react'
+import { FileText, Calculator, Landmark, ShieldCheck, Scale } from 'lucide-react'
 
 interface MemoriaCalculoProps {
   valorDiaria: number
@@ -23,6 +23,9 @@ interface MemoriaCalculoProps {
   custosOperacionais: number
   lucroLiquido: number
   dataInicioObra: Date
+  taxaJurosAnual?: number
+  sistemaFinanc?: string
+  parcelaFinanc?: number
 }
 
 export function MemoriaCalculo({
@@ -32,6 +35,9 @@ export function MemoriaCalculo({
   custosOperacionais,
   lucroLiquido,
   dataInicioObra,
+  taxaJurosAnual = 10.0,
+  sistemaFinanc = 'SAC',
+  parcelaFinanc = 0,
 }: MemoriaCalculoProps) {
   // 1. Tabela de Sensibilidade de Ocupação (espelho da planilha "Calculos")
   const diasSensibilidade = [
@@ -70,43 +76,72 @@ export function MemoriaCalculo({
         <AccordionTrigger className="hover:no-underline py-4 text-sm font-semibold text-[#1F2A24] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-[#0F6B4F]" />
-            <span>Memória de Cálculo e Análise de Sensibilidade</span>
+            <span>Memória de Cálculo, Fórmulas & Premissas de Financiamento</span>
           </div>
           <span className="text-xs text-[#5E6E64] font-normal mr-2 hidden sm:inline">
-            Clique para detalhar fórmulas e cenários
+            Clique para detalhar fórmulas, juros implícitos e sensibilidade
           </span>
         </AccordionTrigger>
         <AccordionContent className="pb-6 space-y-6 pt-2">
           {/* Fórmulas explicadas */}
-          <div className="rounded-xl bg-[#F7F5F1] p-4 border border-[#E3DFD6] space-y-2 text-xs">
+          <div className="rounded-xl bg-[#F7F5F1] p-4 border border-[#E3DFD6] space-y-3 text-xs">
             <div className="font-semibold text-[#0F6B4F] flex items-center gap-1.5">
               <Calculator className="h-4 w-4" />
-              <span>Fórmulas Matemáticas do Modelo Vitacon:</span>
+              <span>Fórmulas Matemáticas do Modelo Vitacon + Housi:</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[#1F2A24]">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-[#1F2A24]">
               <div>
-                • <strong>Valor Total:</strong> Valor do m² × Metragem
+                • <strong>Investimento Studio:</strong> Valor m² × Metragem (R$ 382.835,50 no
+                exemplo Vitacon Domingos de Morais)
               </div>
               <div>
-                • <strong>Faturamento Bruto:</strong> Diária × 30 dias × % Ocupação
+                • <strong>Entrada / Ato (30%):</strong> Investimento Studio × 0,30 (R$ 114.850,50)
               </div>
               <div>
-                • <strong>Custos Operacionais:</strong> Faturamento Bruto × % Custos
+                • <strong>Decoração Completa Housi:</strong> R$ 59.000,00 (mobiliário completo,
+                enxoval e eletros)
               </div>
               <div>
-                • <strong>Lucro Líquido:</strong> Faturamento Bruto − Custos
+                • <strong>Aporte Total Inicial:</strong> Entrada (30%) + Decoração Housi (R$
+                173.850,50)
               </div>
               <div>
-                • <strong>Rentab. Mensal s/ Patrimônio:</strong> Lucro Líquido ÷ Valor Total
+                • <strong>Patrimônio Total:</strong> Valor do Studio + Decoração (R$ 441.835,50)
               </div>
               <div>
-                • <strong>Rentab. Anual s/ Patrimônio:</strong> Rentab. Mensal × 12
+                • <strong>Saldo a Financiar (70%):</strong> Valor do Studio × 0,70 (R$ 267.984,50)
               </div>
               <div>
-                • <strong>Rentab. sobre Aporte:</strong> Lucro Líquido ÷ Aporte em Obras (30%)
+                • <strong>Receita Bruta Mensal:</strong> Diária × 30 dias × % Ocupação (R$ 270 × 21d
+                = R$ 5.670,00)
               </div>
               <div>
-                • <strong>Rentab. Anual s/ Aporte:</strong> Rentab. s/ Aporte × 12
+                • <strong>Despesas Fixas:</strong> Condomínio (R$ 420) + IPTU (R$ 130) + Wi-Fi/TV
+                (R$ 150) + Energia/Água (R$ 100) = R$ 800,00
+              </div>
+              <div>
+                • <strong>Administração Housi:</strong> 15% a 18% sobre a Receita Bruta (15% no
+                slide = R$ 850,50)
+              </div>
+              <div>
+                • <strong>Total Despesas Mensais:</strong> Fixas + Administração Housi (R$ 1.650,50)
+              </div>
+              <div>
+                • <strong>Receita Líquida (Pré-Financiamento):</strong> Bruta − Despesas = R$
+                4.019,50 (2,3% a.m. s/ aporte; 0,9% a.m. s/ patrimônio)
+              </div>
+              <div>
+                • <strong>Amortização SAC (30 anos = 360 meses):</strong> Amortização constante R$
+                744,40/mês. Juros nominais ~10,0% a.a. (0,833% a.m.). 1ª Parcela = R$ 2.977,61;
+                Última = R$ 744,40; Média = R$ 1.861,00.
+              </div>
+              <div>
+                • <strong>Sobra Líquida no Bolso:</strong> Receita Líquida (R$ 4.019,50) − Parcela
+                Financiamento (R$ 1.861,00) = R$ 2.158,50/mês.
+              </div>
+              <div>
+                • <strong>Ponto de Equilíbrio:</strong> Receita Mínima = (Despesas Fixas + Parcela)
+                ÷ (1 − Taxa Housi).
               </div>
             </div>
           </div>
@@ -196,7 +231,10 @@ export function MemoriaCalculo({
                       Custos Operacionais
                     </TableHead>
                     <TableHead className="text-right text-xs font-semibold text-[#1F2A24]">
-                      Lucro Líquido
+                      Parcela Financiamento ({sistemaFinanc})
+                    </TableHead>
+                    <TableHead className="text-right text-xs font-semibold text-[#1F2A24]">
+                      Sobra Líquida Efetiva
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -209,7 +247,10 @@ export function MemoriaCalculo({
                     <TableCell className="text-right tabular-nums text-[#C62828]">
                       - {formatCurrency(custosOperacionais)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums text-[#0F6B4F] text-sm">
+                    <TableCell className="text-right tabular-nums text-neutral-700">
+                      - {formatCurrency(parcelaFinanc)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-[#0F6B4F] text-sm font-extrabold">
                       {formatCurrency(lucroLiquido)}
                     </TableCell>
                   </TableRow>

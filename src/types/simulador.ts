@@ -20,19 +20,118 @@ export interface PlanoPagamentoItem {
   fase: 'Em Obras' | 'Financiamento'
 }
 
+export interface CustosOperacionaisDetalhados {
+  condominio: number
+  iptu: number
+  wifiTv: number
+  energiaAgua: number
+  taxaAdminHousiPerc: number // decimal ex: 0.15
+  outrasDespesas: number
+}
+
+export type SistemaFinanciamento = 'SAC' | 'PRICE'
+
+export interface ParametrosFinanciamento {
+  ativo: boolean
+  valorFinanciado: number
+  taxaJurosAnualPerc: number // % a.a. ex: 10.5
+  prazoAnos: number // ex: 30
+  sistema: SistemaFinanciamento
+  valorParcelaManual?: number // override manual caso informado
+}
+
+export interface ResultadoFinanciamento {
+  sistema: SistemaFinanciamento
+  valorFinanciado: number
+  prazoMeses: number
+  taxaJurosMensalPerc: number
+  primeiraParcela: number
+  ultimaParcela: number
+  parcelaMedia: number
+  parcelaEfetiva: number // A que é deduzida mensalmente (média no SAC ou constante no Price ou override)
+  totalJuros: number
+  totalPago: number
+  manualOverride: boolean
+}
+
+export interface PontoEquilibrio {
+  ocupacaoMinimaPerc: number // % ex: 45.2%
+  diasMinimosOcupados: number // ex: 13.5 dias
+  diariaMinima: number // R$ mantendo ocupação atual
+  receitaBrutaMinima: number // R$ receita necessária para zerar sobra
+  custoTotalComFinanciamento: number // custos operacionais fixos + parcela financiamento / (1 - taxaAdmin)
+  equilibrioAtingivel: boolean
+}
+
+export interface CenarioComparativo {
+  id: 'conservador' | 'provavel' | 'otimista' | 'personalizado'
+  nome: string
+  descricao?: string
+  diaria: number
+  taxaOcupacaoPerc: number
+  taxaAdminHousiPerc: number // % ex 15, 16.5, 18
+  faturamentoBruto: number
+  totalDespesas: number
+  sobraLiquida: number
+  rentabilidadeMensalSobreAporte: number
+  rentabilidadeAnualSobreAporte: number
+  rentabilidadeMensalSobrePatrimonio: number
+  rentabilidadeAnualSobrePatrimonio: number
+  paybackAnos: number
+}
+
 export interface ResultadosSimulacao {
-  valorTotalImovel: number
+  // Investimento
+  valorImovelSemDecoracao: number
+  valorDecoracao: number
+  patrimonioTotal: number // Imóvel + Decoração
+  percentualAteChaves: number // % ex: 30
+  montanteAteChaves: number // % s/ imóvel
+  totalInvestidoAporte: number // Entrada + Decoração
+  saldoRestanteFinanciar: number // Imóvel - montanteAteChaves
+
+  // Receita
+  diasOcupados: number
   faturamentoBrutoMensal: number
-  custosOperacionais: number
-  lucroLiquidoMensal: number
-  rentabilidadeMensalPatrimonio: number // %
-  rentabilidadeAnualPatrimonio: number // %
-  aporteEmObras: number
-  rentabilidadeSobreAporte: number // %
-  rentabilidadeAnualSobreAporte: number // %
-  valorizacaoObraPercent: number // %
+
+  // Despesas Operacionais
+  valorTaxaAdminHousi: number
+  custosOperacionaisDetalhados: CustosOperacionaisDetalhados
+  totalDespesasMensais: number
+
+  // Resultados Operacionais
+  receitaLiquidaAntesFinanciamento: number // faturamentoBrutoMensal - totalDespesasMensais
+  percentualSobreAporteAntesFinanc: number // % a.m.
+  percentualSobrePatrimonioAntesFinanc: number // % a.m.
+
+  // Financiamento
+  financiamento: ResultadoFinanciamento
+
+  // Resultado Líquido Final
+  resultadoLiquidoFinal: number // receitaLiquidaAntesFinanciamento - parcelaEfetiva
+  rentabilidadeMensalSobreAporte: number // % a.m. s/ totalInvestidoAporte
+  rentabilidadeAnualSobreAporte: number // % a.a.
+  rentabilidadeMensalSobrePatrimonio: number // % a.m. s/ patrimonioTotal
+  rentabilidadeAnualSobrePatrimonio: number // % a.a.
+  paybackMeses: number
+  paybackAnos: number
+
+  // Ponto de Equilíbrio
+  pontoEquilibrio: PontoEquilibrio
+
+  // Valorização e legado
+  valorizacaoObraPercent: number
   mediaValorAtivoEntrega: number
   planoPagamento: PlanoPagamentoItem[]
+
+  // Legado de compatibilidade
+  valorTotalImovel: number // igual a valorImovelSemDecoracao
+  custosOperacionais: number // igual a totalDespesasMensais
+  lucroLiquidoMensal: number // igual a resultadoLiquidoFinal (ou receita líquida se sem financ)
+  rentabilidadeMensalPatrimonio: number
+  rentabilidadeAnualPatrimonio: number
+  aporteEmObras: number
+  rentabilidadeSobreAporte: number
 }
 
 export interface SimulacaoRecord {

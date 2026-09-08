@@ -195,27 +195,42 @@ export default function SimulacoesPage() {
                   {/* Resumo Financeiro */}
                   <div className="rounded-xl border border-[#E3DFD6] bg-[#F7F5F1]/60 p-3 space-y-2">
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-[#5E6E64]">Valor do Imóvel:</span>
+                      <span className="text-[#5E6E64]">Patrimônio Total:</span>
                       <span className="font-semibold text-[#1F2A24] tabular-nums">
-                        {formatCurrency(res?.valorTotalImovel || sim.valor_m2 * sim.metragem)}
+                        {formatCurrency(
+                          res?.patrimonioTotal ||
+                            res?.valorTotalImovel ||
+                            sim.valor_m2 * sim.metragem,
+                        )}
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-[#5E6E64]">Lucro Líquido Mensal:</span>
-                      <span className="font-bold text-[#0F6B4F] tabular-nums">
-                        {formatCurrency(res?.lucroLiquidoMensal || 0)}/mês
+                      <span className="text-[#5E6E64]">Aporte Total (c/ Decoração):</span>
+                      <span className="font-semibold text-neutral-800 tabular-nums">
+                        {formatCurrency(res?.totalInvestidoAporte || res?.aporteEmObras || 0)}
                       </span>
                     </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-[#5E6E64]">Sobra Líquida no Bolso:</span>
+                      <span className="font-bold text-[#0F6B4F] tabular-nums">
+                        {formatCurrency(res?.resultadoLiquidoFinal ?? res?.lucroLiquidoMensal ?? 0)}
+                        /mês
+                      </span>
+                    </div>
+                    {res?.financiamento?.valorFinanciado ? (
+                      <div className="flex justify-between items-center text-[11px] text-[#5E6E64]">
+                        <span>Parcela Financiamento:</span>
+                        <span className="font-medium text-red-600 tabular-nums">
+                          - {formatCurrency(res.financiamento.parcelaEfetiva)} (
+                          {res.financiamento.sistema})
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="border-t border-[#E3DFD6] pt-1.5 flex justify-between items-center text-xs">
-                      <span className="text-[#5E6E64]">Rentab. Anual s/ Patrimônio:</span>
-                      <span className="font-bold text-[#C9A227] tabular-nums">
-                        {formatPercent(res?.rentabilidadeAnualPatrimonio || 0)} a.a.
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-[#5E6E64]">Rentab. Anual s/ Aporte:</span>
+                      <span className="text-[#5E6E64]">Rentab. s/ Aporte:</span>
                       <span className="font-bold text-[#0F6B4F] tabular-nums">
-                        {formatPercent(res?.rentabilidadeAnualSobreAporte || 0)} a.a.
+                        {formatPercent(res?.rentabilidadeMensalSobreAporte || 0, 2)} a.m. (
+                        {formatPercent(res?.rentabilidadeAnualSobreAporte || 0, 1)} a.a.)
                       </span>
                     </div>
                   </div>
