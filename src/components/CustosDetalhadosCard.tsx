@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { Slider } from '@/components/ui/slider'
-import { Receipt, Percent, ShieldCheck } from 'lucide-react'
+import { PercentInput } from '@/components/PercentInput'
+import { Receipt, Percent, ShieldCheck, Check } from 'lucide-react'
 
 interface CustosDetalhadosCardProps {
   custos: CustosOperacionaisDetalhados
@@ -28,9 +29,10 @@ export function CustosDetalhadosCard({
   }
 
   const handleAdminPercChange = (val: number) => {
+    const clamped = Math.min(30, Math.max(5, val))
     onChange({
       ...custos,
-      taxaAdminHousiPerc: val / 100,
+      taxaAdminHousiPerc: clamped / 100,
     })
   }
 
@@ -52,7 +54,7 @@ export function CustosDetalhadosCard({
                 Custos Operacionais & Administração Housi
               </CardTitle>
               <CardDescription className="text-xs text-[#5E6E64]">
-                Despesas fixas individuais e taxa de gestão de 15% a 18%
+                Despesas fixas individuais e taxa de administração Housi (15% a 18%)
               </CardDescription>
             </div>
           </div>
@@ -66,39 +68,125 @@ export function CustosDetalhadosCard({
       </CardHeader>
 
       <CardContent className="pt-4 space-y-4">
-        {/* Slider Taxa de Administração Housi (15% a 18%) */}
-        <div className="rounded-xl bg-[#F7F5F1] p-3.5 border border-[#E3DFD6] space-y-2">
-          <div className="flex items-center justify-between">
+        {/* Controle Destacado: Taxa de Administração Housi (%) */}
+        <div className="rounded-xl bg-gradient-to-br from-[#F7F5F1] to-emerald-50/40 p-3.5 border-2 border-[#0F6B4F]/30 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-[#0F6B4F]" />
-              <Label className="text-xs font-bold text-[#1F2A24]">
-                Taxa de Gestão / Administração Housi
+              <Label htmlFor="taxa-admin-housi-input" className="text-xs font-bold text-[#1F2A24]">
+                Taxa de administração Housi (%)
               </Label>
             </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-xs font-extrabold text-[#0F6B4F] bg-white px-2 py-0.5 rounded-md border border-[#E3DFD6] tabular-nums">
-                {taxaAdminPercNum.toFixed(1)}% ({formatCurrency(valorAdminCalculado)}/mês)
+              <span className="text-[11px] font-semibold text-[#5E6E64]">
+                = {formatCurrency(valorAdminCalculado)}/mês
               </span>
+              <div className="w-24">
+                <PercentInput
+                  id="taxa-admin-housi-input"
+                  value={taxaAdminPercNum}
+                  onChange={handleAdminPercChange}
+                  decimals={1}
+                  min={5}
+                  max={30}
+                  className="h-8 rounded-lg border-[#0F6B4F]/40 bg-white text-xs font-bold text-[#0F6B4F] text-center focus-visible:ring-[#0F6B4F]"
+                />
+              </div>
             </div>
           </div>
-          <p className="text-[11px] text-[#5E6E64]">
-            Plano Short Stay Housi: <strong>15%</strong> (gestão essencial), <strong>16,5%</strong>{' '}
-            (plano intermediário) ou <strong>18%</strong> (gestão completa 360° com precificação
-            dinâmica).
-          </p>
-          <Slider
-            value={[taxaAdminPercNum]}
-            onValueChange={(vals) => handleAdminPercChange(vals[0])}
-            min={10}
-            max={25}
-            step={0.5}
-            className="cursor-pointer"
-          />
-          <div className="flex justify-between text-[10px] text-[#5E6E64] font-medium">
-            <span>10%</span>
-            <span className="text-[#0F6B4F] font-bold">15% (Padrão Slide)</span>
-            <span className="text-[#0F6B4F] font-bold">18% (Completa)</span>
-            <span>25%</span>
+
+          {/* Botões de Seleção Rápida: 15% | 16,5% | 18% */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-[#5E6E64]">
+              <span>Planos Housi:</span>
+              <span className="text-[10px] text-[#5E6E64]">Alterne com 1 clique:</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => handleAdminPercChange(15)}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-semibold transition-all ${
+                  Math.abs(taxaAdminPercNum - 15) < 0.1
+                    ? 'bg-[#0F6B4F] text-white border-[#0F6B4F] shadow-sm'
+                    : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                }`}
+              >
+                <div className="flex items-center gap-1 font-bold">
+                  <span>15,0%</span>
+                  {Math.abs(taxaAdminPercNum - 15) < 0.1 && <Check className="h-3 w-3" />}
+                </div>
+                <span
+                  className={`text-[10px] font-normal ${
+                    Math.abs(taxaAdminPercNum - 15) < 0.1 ? 'text-white/80' : 'text-[#5E6E64]'
+                  }`}
+                >
+                  Padrão Slide
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAdminPercChange(16.5)}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-semibold transition-all ${
+                  Math.abs(taxaAdminPercNum - 16.5) < 0.1
+                    ? 'bg-[#0F6B4F] text-white border-[#0F6B4F] shadow-sm'
+                    : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                }`}
+              >
+                <div className="flex items-center gap-1 font-bold">
+                  <span>16,5%</span>
+                  {Math.abs(taxaAdminPercNum - 16.5) < 0.1 && <Check className="h-3 w-3" />}
+                </div>
+                <span
+                  className={`text-[10px] font-normal ${
+                    Math.abs(taxaAdminPercNum - 16.5) < 0.1 ? 'text-white/80' : 'text-[#5E6E64]'
+                  }`}
+                >
+                  Intermediário
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAdminPercChange(18)}
+                className={`flex flex-col items-center justify-center p-2 rounded-xl border text-xs font-semibold transition-all ${
+                  Math.abs(taxaAdminPercNum - 18) < 0.1
+                    ? 'bg-[#0F6B4F] text-white border-[#0F6B4F] shadow-sm'
+                    : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                }`}
+              >
+                <div className="flex items-center gap-1 font-bold">
+                  <span>18,0%</span>
+                  {Math.abs(taxaAdminPercNum - 18) < 0.1 && <Check className="h-3 w-3" />}
+                </div>
+                <span
+                  className={`text-[10px] font-normal ${
+                    Math.abs(taxaAdminPercNum - 18) < 0.1 ? 'text-white/80' : 'text-[#5E6E64]'
+                  }`}
+                >
+                  Gestão 360°
+                </span>
+              </button>
+            </div>
+          </div>
+
+          {/* Slider Contínuo */}
+          <div className="pt-1 space-y-1.5">
+            <Slider
+              value={[taxaAdminPercNum]}
+              onValueChange={(vals) => handleAdminPercChange(vals[0])}
+              min={10}
+              max={25}
+              step={0.5}
+              className="cursor-pointer"
+            />
+            <div className="flex justify-between text-[10px] text-[#5E6E64] font-medium">
+              <span>10%</span>
+              <span className="text-[#0F6B4F] font-bold">15% (Essencial)</span>
+              <span className="text-[#0F6B4F] font-bold">18% (Completa)</span>
+              <span>25%</span>
+            </div>
           </div>
         </div>
 

@@ -243,14 +243,17 @@ export function SlideVitaconView({
                   </span>
                 </div>
               )}
-              <div className="flex justify-between items-center py-2 px-4 text-neutral-800 bg-neutral-50">
+              <div className="flex justify-between items-center py-2 px-4 text-neutral-800 bg-emerald-50/50">
                 <span className="flex items-center gap-2">
-                  <span>ADMINISTRAÇÃO HOUSI</span>
-                  <span className="text-[11px] font-bold text-[#0F6B4F] bg-[#0F6B4F]/10 px-1.5 py-0.5 rounded">
-                    {(custosOperacionaisDetalhados.taxaAdminHousiPerc * 100).toFixed(1)}%
+                  <span className="font-bold text-[#1F2A24]">ADMINISTRAÇÃO HOUSI</span>
+                  <span className="text-[11px] font-black text-[#0F6B4F] bg-white px-2 py-0.5 rounded border border-[#0F6B4F]/30 shadow-xs tabular-nums">
+                    {(custosOperacionaisDetalhados.taxaAdminHousiPerc * 100)
+                      .toFixed(1)
+                      .replace('.', ',')}
+                    %
                   </span>
                 </span>
-                <span className="font-semibold tabular-nums text-neutral-900">
+                <span className="font-black tabular-nums text-[#0F6B4F]">
                   {formatCurrency(valorTaxaAdminHousi)}
                 </span>
               </div>

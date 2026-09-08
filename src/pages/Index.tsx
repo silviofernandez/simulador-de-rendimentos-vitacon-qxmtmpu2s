@@ -741,14 +741,14 @@ export default function IndexPage() {
             </CardContent>
           </Card>
 
-          {/* Card 2: Premissas de Locação (Diária e Ocupação) */}
+          {/* Card 2: Premissas de Locação (Diária, Ocupação e Taxa Housi) */}
           <Card className="border-[#E3DFD6] bg-white rounded-2xl shadow-sm">
             <CardHeader className="pb-3 border-b border-[#E3DFD6]">
               <CardTitle className="text-sm sm:text-base font-bold text-[#1F2A24]">
-                Premissas de Short Stay (Locação)
+                Premissas de Short Stay (Locação & Housi)
               </CardTitle>
               <CardDescription className="text-xs text-[#5E6E64]">
-                Valor da diária e taxa de ocupação mensal estimada
+                Valor da diária, taxa de ocupação e taxa de administração Housi
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
@@ -788,6 +788,87 @@ export default function IndexPage() {
                   <span>50%</span>
                   <span>70% (Slide Domingos)</span>
                   <span>100%</span>
+                </div>
+              </div>
+
+              {/* Taxa de administração Housi (%) - Acesso Imediato no Card de Locação */}
+              <div className="rounded-xl bg-[#F7F5F1] p-3 border border-[#E3DFD6] space-y-2 pt-2.5">
+                <div className="flex items-center justify-between">
+                  <Label
+                    htmlFor="taxa-admin-housi-premissas"
+                    className="text-xs font-bold text-[#1F2A24]"
+                  >
+                    Taxa de administração Housi (%)
+                  </Label>
+                  <div className="w-24">
+                    <PercentInput
+                      id="taxa-admin-housi-premissas"
+                      value={Math.round(custosDetalhados.taxaAdminHousiPerc * 1000) / 10}
+                      onChange={(val) => {
+                        const clamped = Math.min(30, Math.max(5, val))
+                        setCustosDetalhados((prev) => ({
+                          ...prev,
+                          taxaAdminHousiPerc: clamped / 100,
+                        }))
+                      }}
+                      decimals={1}
+                      min={5}
+                      max={30}
+                      className="h-8 rounded-lg border-[#0F6B4F]/30 bg-white text-xs font-bold text-[#0F6B4F] text-center focus-visible:ring-[#0F6B4F]"
+                    />
+                  </div>
+                </div>
+
+                {/* Botões rápidos 15% e 18% */}
+                <div className="grid grid-cols-3 gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustosDetalhados((prev) => ({
+                        ...prev,
+                        taxaAdminHousiPerc: 0.15,
+                      }))
+                    }
+                    className={`py-1 px-2 rounded-lg border text-center font-semibold text-xs transition-colors ${
+                      Math.abs(custosDetalhados.taxaAdminHousiPerc - 0.15) < 0.005
+                        ? 'bg-[#0F6B4F] text-white border-[#0F6B4F]'
+                        : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                    }`}
+                  >
+                    15% (Slide)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustosDetalhados((prev) => ({
+                        ...prev,
+                        taxaAdminHousiPerc: 0.165,
+                      }))
+                    }
+                    className={`py-1 px-2 rounded-lg border text-center font-semibold text-xs transition-colors ${
+                      Math.abs(custosDetalhados.taxaAdminHousiPerc - 0.165) < 0.005
+                        ? 'bg-[#0F6B4F] text-white border-[#0F6B4F]'
+                        : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                    }`}
+                  >
+                    16,5%
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustosDetalhados((prev) => ({
+                        ...prev,
+                        taxaAdminHousiPerc: 0.18,
+                      }))
+                    }
+                    className={`py-1 px-2 rounded-lg border text-center font-semibold text-xs transition-colors ${
+                      Math.abs(custosDetalhados.taxaAdminHousiPerc - 0.18) < 0.005
+                        ? 'bg-[#0F6B4F] text-white border-[#0F6B4F]'
+                        : 'bg-white text-[#1F2A24] border-[#E3DFD6] hover:bg-neutral-50'
+                    }`}
+                  >
+                    18% (Completa)
+                  </button>
                 </div>
               </div>
             </CardContent>
