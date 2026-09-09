@@ -12,6 +12,15 @@ export interface DadosParaMensagemWhatsApp {
   resultados: ResultadosSimulacao
 }
 
+export interface DadosParaMensagemPlanoPagamento {
+  titulo?: string
+  empreendimento?: string
+  bairro?: string
+  metragem?: number
+  dataSimulacao?: string | Date
+  resultados: ResultadosSimulacao
+}
+
 /**
  * Formata a mensagem de texto formal e profissional para compartilhamento com o cliente
  */
@@ -155,6 +164,195 @@ export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): stri
 }
 
 /**
+ * Formata a mensagem formal e profissional do Plano de Pagamento (sem emojis)
+ * para envio direto ao cliente no WhatsApp ou cópia para área de transferência.
+ */
+export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPagamento): string {
+  const { titulo, empreendimento, bairro, metragem, dataSimulacao, resultados: res } = dados
+
+  const nomeExibicao = empreendimento || titulo || 'Studio Vitacon'
+
+  // Formatação de data
+  let dataFormatada = ''
+  if (dataSimulacao) {
+    const d = typeof dataSimulacao === 'string' ? new Date(dataSimulacao) : dataSimulacao
+    if (!isNaN(d.getTime())) {
+      dataFormatada = d.toLocaleDateString('pt-BR')
+    }
+  }
+  if (!dataFormatada) {
+    dataFormatada = new Date().toLocaleDateString('pt-BR')
+  }
+
+  const linhas: string[] = []
+
+  // Cabeçalho
+  linhas.push(`PLANO DE PAGAMENTO — ${nomeExibicao.toUpperCase()}`)
+  const detalhesLocalizacao: string[] = []
+  if (bairro) detalhesLocalizacao.push(bairro)
+  if (metragem && metragem > 0) detalhesLocalizacao.push(`${metragem} m²`)
+  if (detalhesLocalizacao.length > 0) {
+    linhas.push(`Localização / Tipologia: ${detalhesLocalizacao.join(' • ')}`)
+  }
+  linhas.push(`Data da simulação: ${dataFormatada}`)
+
+  // Valores do Imóvel e Patrimônio
+  const valImovel = res?.valorImovelSemDecoracao || res?.valorTotalImovel || 0
+  const valDecoracao = res?.valorDecoracao || 0
+  const patrimonioTotal = res?.patrimonioTotal || valImovel + valDecoracao
+
+  const linhasValores: string[] = []
+  if (valImovel > 0) {
+    linhasValores.push(`• Valor da unidade (sem decoração): ${formatCurrency(valImovel)}`)
+  }
+  if (valDecoracao > 0) {
+    linhasValores.push(`• Decoração e mobília completa Housi: ${formatCurrency(valDecoracao)}`)
+  }
+  if (patrimonioTotal > 0 && (valDecoracao > 0 || valImovel !== patrimonioTotal)) {
+    linhasValores.push(`• Patrimônio total: ${formatCurrency(patrimonioTotal)}`)
+  }
+
+  if (linhasValores.length > 0) {
+    linhas.push('')
+    linhas.push('VALOR DO IMÓVEL')
+    linhas.push(...linhasValores)
+  }
+
+  // Cronograma de Pagamento (Fase de Obras)
+  const plano = res?.planoPagamento || []
+  const itensObras = plano.filter((p) => p.fase === 'Em Obras' && p.total > 0)
+
+  if (itensObras.length > 0) {
+    linhas.push('')
+    linhas.push('FLUXO DE PAGAMENTO (EM OBRAS)')
+
+    for (const item of itensObras) {
+      const serieUpper = item.serie.toUpperCase()
+      const percStr = formatPercent(item.percentual, 1)
+
+      if (serieUpper === 'ATO') {
+        const linha =
+          `• Ato (${percStr}): ${formatCurrency(item.total)}` +
+          (item.inicio ? ` (vencimento em ${item.inicio})` : '')
+        linhas.push(linha)
+      } else if (serieUpper.includes('SINAL') || serieUpper.includes('SINAIS')) {
+        let detalhe = `• Sinais (${percStr}): `
+        if (item.quantidade > 1) {
+          detalhe += `${item.quantidade}x de ${formatCurrency(item.valorParcela)} = ${formatCurrency(item.total)}`
+        } else {
+          detalhe += formatCurrency(item.total)
+        }
+        if (item.inicio) detalhe += ` (início em ${item.inicio})`
+        linhas.push(detalhe)
+      } else if (serieUpper.includes('MENSAIS') || serieUpper.includes('MENSAL')) {
+        let detalhe = `• Parcelas mensais (${percStr}): `
+        if (item.quantidade > 1) {
+          detalhe += `${item.quantidade}x de ${formatCurrency(item.valorParcela)} = ${formatCurrency(item.total)}`
+        } else {
+          detalhe += formatCurrency(item.total)
+        }
+        if (item.inicio) detalhe += ` (início em ${item.inicio})`
+        linhas.push(detalhe)
+      } else if (serieUpper.includes('ANUAIS') || serieUpper.includes('ANUAL')) {
+        let detalhe = `• Parcelas anuais (${percStr}): `
+        if (item.quantidade > 1) {
+          detalhe += `${item.quantidade}x de ${formatCurrency(item.valorParcela)} = ${formatCurrency(item.total)}`
+        } else {
+          detalhe += formatCurrency(item.total)
+        }
+        if (item.inicio) detalhe += ` (início em ${item.inicio})`
+        linhas.push(detalhe)
+      } else if (serieUpper.includes('ÚNICA') || serieUpper.includes('UNICA')) {
+        const linha =
+          `• Parcela única (${percStr}): ${formatCurrency(item.total)}` +
+          (item.inicio ? ` (vencimento em ${item.inicio})` : '')
+        linhas.push(linha)
+      } else {
+        // Outra série qualquer configurada
+        let detalhe = `• ${item.serie} (${percStr}): `
+        if (item.quantidade > 1) {
+          detalhe += `${item.quantidade}x de ${formatCurrency(item.valorParcela)} = ${formatCurrency(item.total)}`
+        } else {
+          detalhe += formatCurrency(item.total)
+        }
+        if (item.inicio) detalhe += ` (início em ${item.inicio})`
+        linhas.push(detalhe)
+      }
+    }
+
+    // Total pago até as chaves
+    const percChaves = res?.percentualAteChaves ?? 30
+    const montanteChaves = res?.montanteAteChaves || valImovel * (percChaves / 100)
+    if (montanteChaves > 0) {
+      linhas.push(`• Total pago até as chaves (${percChaves}%): ${formatCurrency(montanteChaves)}`)
+    }
+  }
+
+  // Quitação na Entrega / Financiamento
+  const saldoFinanciar = res?.saldoRestanteFinanciar || 0
+  const financ = res?.financiamento
+  const percFinanc = 100 - (res?.percentualAteChaves ?? 30)
+
+  const linhasQuitacao: string[] = []
+  if (saldoFinanciar > 0) {
+    linhasQuitacao.push(
+      `• Saldo a financiar na entrega (${percFinanc}%): ${formatCurrency(saldoFinanciar)}`,
+    )
+  }
+
+  if (financ && financ.valorFinanciado > 0) {
+    if (financ.sistema) {
+      linhasQuitacao.push(`• Sistema de amortização: ${financ.sistema}`)
+    }
+    if (financ.taxaJurosMensalPerc && financ.taxaJurosMensalPerc > 0) {
+      const taxaAnualAprox =
+        Math.round((Math.pow(1 + financ.taxaJurosMensalPerc / 100, 12) - 1) * 1000) / 10
+      linhasQuitacao.push(
+        `• Taxa de juros estimada: ${formatPercent(taxaAnualAprox, 1)} a.a. (~${formatPercent(financ.taxaJurosMensalPerc, 2)} a.m.)`,
+      )
+    }
+    if (financ.prazoMeses && financ.prazoMeses > 0) {
+      const anos = Math.round(financ.prazoMeses / 12)
+      linhasQuitacao.push(`• Prazo do financiamento: ${financ.prazoMeses} meses (${anos} anos)`)
+    }
+    if (financ.primeiraParcela && financ.primeiraParcela > 0) {
+      if (financ.sistema === 'SAC' && financ.ultimaParcela && financ.ultimaParcela > 0) {
+        linhasQuitacao.push(
+          `• 1ª parcela estimada: ${formatCurrency(financ.primeiraParcela)}/mês (decrescente até ${formatCurrency(financ.ultimaParcela)})`,
+        )
+      } else {
+        linhasQuitacao.push(
+          `• Parcela mensal estimada: ${formatCurrency(financ.primeiraParcela)}/mês`,
+        )
+      }
+    } else if (financ.parcelaEfetiva && financ.parcelaEfetiva > 0) {
+      linhasQuitacao.push(`• Parcela mensal estimada: ${formatCurrency(financ.parcelaEfetiva)}/mês`)
+    }
+  }
+
+  if (linhasQuitacao.length > 0) {
+    linhas.push('')
+    linhas.push('QUITAÇÃO NA ENTREGA DAS CHAVES')
+    linhas.push(...linhasQuitacao)
+  }
+
+  // Observação sobre a decoração Housi (se houver)
+  if (valDecoracao > 0) {
+    linhas.push('')
+    linhas.push('MOBÍLIA E DECORAÇÃO')
+    linhas.push(
+      `• Kit de decoração completa Housi: ${formatCurrency(valDecoracao)} (adicionado ao fluxo para operação em short stay)`,
+    )
+  }
+
+  // Frase final obrigatória com a grafia exata solicitada
+  linhas.push('')
+  linhas.push('Exemplo enviado através de simulador Gabriel Patrimônio')
+
+  return linhas.join('\n')
+}
+
+/**
  * Converte um SimulacaoRecord completo em DadosParaMensagemWhatsApp
  */
 export function extrairDadosDeSimulacaoRecord(sim: SimulacaoRecord): DadosParaMensagemWhatsApp {
@@ -165,6 +363,22 @@ export function extrairDadosDeSimulacaoRecord(sim: SimulacaoRecord): DadosParaMe
     metragem: sim.metragem,
     valorDiaria: sim.valor_diaria,
     taxaOcupacaoPerc: Math.round(sim.taxa_ocupacao * 100),
+    dataSimulacao: sim.created,
+    resultados: sim.resultados,
+  }
+}
+
+/**
+ * Converte um SimulacaoRecord em DadosParaMensagemPlanoPagamento
+ */
+export function extrairDadosPlanoDeSimulacaoRecord(
+  sim: SimulacaoRecord,
+): DadosParaMensagemPlanoPagamento {
+  return {
+    titulo: sim.titulo,
+    empreendimento: sim.empreendimento,
+    bairro: sim.bairro,
+    metragem: sim.metragem,
     dataSimulacao: sim.created,
     resultados: sim.resultados,
   }

@@ -67,6 +67,7 @@ import {
 } from 'lucide-react'
 import {
   formatarMensagemWhatsApp,
+  formatarMensagemPlanoPagamento,
   abrirWhatsAppComTexto,
   copiarTextoParaClipboard,
 } from '@/lib/whatsapp'
@@ -221,6 +222,50 @@ export default function IndexPage() {
     } catch (err) {
       console.error(err)
       toast.error('Erro ao copiar resumo.')
+    }
+  }
+
+  // Compartilhamento e cópia específicos do PLANO DE PAGAMENTO
+  const handleCompartilharWhatsAppPlano = () => {
+    try {
+      const mensagem = formatarMensagemPlanoPagamento({
+        titulo: tituloSimulacao.trim() || nomeEmpreendimento,
+        empreendimento: nomeEmpreendimento,
+        bairro,
+        metragem,
+        dataSimulacao: new Date(),
+        resultados,
+      })
+      abrirWhatsAppComTexto(mensagem)
+      toast.success('Abrindo WhatsApp com o plano de pagamento...')
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao formatar plano de pagamento para WhatsApp.')
+    }
+  }
+
+  const handleCopiarPlanoPagamento = async (): Promise<boolean> => {
+    try {
+      const mensagem = formatarMensagemPlanoPagamento({
+        titulo: tituloSimulacao.trim() || nomeEmpreendimento,
+        empreendimento: nomeEmpreendimento,
+        bairro,
+        metragem,
+        dataSimulacao: new Date(),
+        resultados,
+      })
+      const ok = await copiarTextoParaClipboard(mensagem)
+      if (ok) {
+        toast.success('Plano de pagamento copiado para a área de transferência!')
+        return true
+      } else {
+        toast.error('Erro ao copiar plano de pagamento.')
+        return false
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao copiar plano de pagamento.')
+      return false
     }
   }
 
@@ -1088,6 +1133,9 @@ export default function IndexPage() {
           <PlanoPagamentoTable
             plano={resultados.planoPagamento}
             valorTotalImovel={resultados.valorImovelSemDecoracao}
+            percentualAteChaves={percentualAteChaves}
+            onCompartilharWhatsApp={handleCompartilharWhatsAppPlano}
+            onCopiarPlano={handleCopiarPlanoPagamento}
           />
 
           {/* Seção 5: Gráfico de Valorização no Período de Obra */}
