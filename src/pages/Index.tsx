@@ -6,6 +6,7 @@ import {
   CustosOperacionaisDetalhados,
   ParametrosFinanciamento,
   CenarioComparativo,
+  ConfigPlanoPagamento,
 } from '@/types/simulador'
 import { listarEmpreendimentos } from '@/services/empreendimentos'
 import { criarSimulacao } from '@/services/simulacoes'
@@ -98,6 +99,22 @@ const PRESET_DOMINGOS_MORAIS = {
     prazoAnos: 30,
     sistema: 'SAC' as const,
   },
+  configPlano: {
+    mesesAteEntrega: 22, // Domingos de Morais: faltam 22 meses para entrega
+    prazoTotalObraMeses: 24,
+    qtdMensais: 22,
+    qtdSinais: 3,
+    qtdBaloes: 2,
+    percAto: 10,
+    percSinais: 5,
+    percMensais: 5,
+    percBaloesTotal: 5,
+    percUnica: 5,
+    baloes: [
+      { id: 'balao_1', mesOffset: 12, percentual: 2.5 },
+      { id: 'balao_2', mesOffset: 24, percentual: 2.5 },
+    ],
+  } as ConfigPlanoPagamento,
 }
 
 export default function IndexPage() {
@@ -141,6 +158,11 @@ export default function IndexPage() {
   const [valorizacaoObraPerc, setValorizacaoObraPerc] = useState<number>(32)
   const [mesInicioObra, setMesInicioObra] = useState<number>(3) // Abril (0-indexed)
   const [anoInicioObra, setAnoInicioObra] = useState<number>(2025)
+
+  // 6. CONFIGURAÇÃO AVANÇADA DE PRAZOS DO PLANO DE PAGAMENTO
+  const [configPlano, setConfigPlano] = useState<ConfigPlanoPagamento>(
+    PRESET_DOMINGOS_MORAIS.configPlano,
+  )
 
   // CENÁRIOS COMPARATIVOS PRÉ-CONFIGURADOS (100% editáveis pelo usuário)
   const [cenariosState, setCenariosState] = useState<
@@ -348,6 +370,18 @@ export default function IndexPage() {
       setCustosDetalhados(res.custosOperacionaisDetalhados)
     }
 
+    // Carrega config de prazos se existir na simulação ou usa padrão compatível
+    const configSalva = s.config_plano_pagamento || res?.configPlanoPagamento
+    if (configSalva) {
+      setConfigPlano(configSalva)
+    } else if (s.meses_ate_entrega) {
+      setConfigPlano((prev) => ({
+        ...prev,
+        mesesAteEntrega: s.meses_ate_entrega!,
+        qtdMensais: s.meses_ate_entrega!,
+      }))
+    }
+
     if (res?.financiamento) {
       setFinanciamento({
         ativo: res.financiamento.valorFinanciado > 0,
@@ -379,7 +413,27 @@ export default function IndexPage() {
     setTaxaOcupacaoPerc(PRESET_DOMINGOS_MORAIS.taxaOcupacaoPerc)
     setCustosDetalhados({ ...PRESET_DOMINGOS_MORAIS.custos })
     setFinanciamento({ ...PRESET_DOMINGOS_MORAIS.financiamento })
+    setConfigPlano({ ...PRESET_DOMINGOS_MORAIS.configPlano })
     toast.success('Valores padrão do slide Vitacon Domingos de Morais restaurados!')
+  }
+
+  // Handler para atualizar prazos do plano e sincronizar o percentual pago até as chaves
+  const handleConfigPlanoChange = (novaConfig: ConfigPlanoPagamento) => {
+    setConfigPlano(novaConfig)
+    // Calcula novo percentual até as chaves derivado das linhas do plano
+    const somaPerc =
+      (novaConfig.percAto ?? 10) +
+      (novaConfig.percSinais ?? 5) +
+      (novaConfig.percMensais ?? 5) +
+      (novaConfig.percBaloesTotal ?? 5) +
+      (novaConfig.percUnica ?? 5)
+    setPercentualAteChaves(Math.round(somaPerc * 10) / 10)
+  }
+
+  const handleRestaurarConfigPlanoPadrao = () => {
+    setConfigPlano({ ...PRESET_DOMINGOS_MORAIS.configPlano })
+    setPercentualAteChaves(PRESET_DOMINGOS_MORAIS.percentualAteChaves)
+    toast.info('Prazos e quantidades do Plano de Pagamento restaurados aos padrões!')
   }
 
   // Data de início da obra
@@ -387,12 +441,12 @@ export default function IndexPage() {
     return new Date(anoInicioObra, mesInicioObra, 1)
   }, [anoInicioObra, mesInicioObra])
 
-  // Saldo residual sugerido (70% do imóvel)
+  // Saldo residual sugerido (70% do imóvel ou derivado do plano)
   const saldoRestanteSugerido = useMemo(() => {
     return Math.max(0, valorImovel * (1 - percentualAteChaves / 100))
   }, [valorImovel, percentualAteChaves])
 
-  // Cálculo financeiro completo do cenário principal
+  // Cálculo financeiro completo do cenário principal com prazos e parcelas editáveis
   const resultados = useMemo(() => {
     return calcularSimulacaoCompleta({
       valorImovel,
@@ -408,6 +462,7 @@ export default function IndexPage() {
       },
       valorizacaoObraPerc: valorizacaoObraPerc / 100,
       dataInicioObra,
+      configPlano,
     })
   }, [
     valorImovel,
@@ -420,6 +475,7 @@ export default function IndexPage() {
     saldoRestanteSugerido,
     valorizacaoObraPerc,
     dataInicioObra,
+    configPlano,
   ])
 
   // Cálculo dos 3 cenários comparativos (Conservador, Provável, Otimista)
@@ -542,6 +598,8 @@ export default function IndexPage() {
             ? resultados.totalDespesasMensais / resultados.faturamentoBrutoMensal
             : 0.24,
         valorizacao_obra: valorizacaoObraPerc / 100,
+        meses_ate_entrega: configPlano.mesesAteEntrega,
+        config_plano_pagamento: configPlano,
         resultados,
       })
 
@@ -804,7 +862,21 @@ export default function IndexPage() {
                   <PercentInput
                     id="perc-chaves"
                     value={percentualAteChaves}
-                    onChange={setPercentualAteChaves}
+                    onChange={(novoPerc) => {
+                      setPercentualAteChaves(novoPerc)
+                      // Ajusta proporcionalmente as linhas do plano
+                      if (novoPerc > 0) {
+                        const proporcao = novoPerc / 30
+                        setConfigPlano((prev) => ({
+                          ...prev,
+                          percAto: Math.round(10 * proporcao * 10) / 10,
+                          percSinais: Math.round(5 * proporcao * 10) / 10,
+                          percMensais: Math.round(5 * proporcao * 10) / 10,
+                          percBaloesTotal: Math.round(5 * proporcao * 10) / 10,
+                          percUnica: Math.round(5 * proporcao * 10) / 10,
+                        }))
+                      }
+                    }}
                     decimals={1}
                     min={0}
                     max={100}
@@ -1129,11 +1201,14 @@ export default function IndexPage() {
             onAplicarAoSimulador={handleAplicarCenarioAoSimulador}
           />
 
-          {/* Seção 4: Tabela Plano de Pagamento em Obras */}
+          {/* Seção 4: Tabela Plano de Pagamento em Obras com Prazos e Quantidades Editáveis */}
           <PlanoPagamentoTable
             plano={resultados.planoPagamento}
             valorTotalImovel={resultados.valorImovelSemDecoracao}
             percentualAteChaves={percentualAteChaves}
+            configPlano={configPlano}
+            onChangeConfigPlano={handleConfigPlanoChange}
+            onRestaurarConfigPadrao={handleRestaurarConfigPlanoPadrao}
             onCompartilharWhatsApp={handleCompartilharWhatsAppPlano}
             onCopiarPlano={handleCopiarPlanoPagamento}
           />

@@ -267,6 +267,15 @@ export default function SimulacoesPage() {
 
                   {/* Resumo Financeiro */}
                   <div className="rounded-xl border border-[#E3DFD6] bg-[#F7F5F1]/60 p-3 space-y-2">
+                    {/* Exibe meses restantes até entrega se configurado */}
+                    {sim.meses_ate_entrega ? (
+                      <div className="flex justify-between items-center text-xs pb-1 border-b border-[#E3DFD6]/60">
+                        <span className="text-[#5E6E64]">Prazo até Entrega:</span>
+                        <span className="font-semibold text-[#0F6B4F]">
+                          {sim.meses_ate_entrega} meses restantes
+                        </span>
+                      </div>
+                    ) : null}
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-[#5E6E64]">Patrimônio Total:</span>
                       <span className="font-semibold text-[#1F2A24] tabular-nums">

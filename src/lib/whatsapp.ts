@@ -221,10 +221,16 @@ export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPaga
   // Cronograma de Pagamento (Fase de Obras)
   const plano = res?.planoPagamento || []
   const itensObras = plano.filter((p) => p.fase === 'Em Obras' && p.total > 0)
+  const configPlano = res?.configPlanoPagamento
 
   if (itensObras.length > 0) {
     linhas.push('')
     linhas.push('FLUXO DE PAGAMENTO (EM OBRAS)')
+
+    // Prazos Mestres informados na mensagem
+    if (configPlano?.mesesAteEntrega) {
+      linhas.push(`• Prazo até a entrega das chaves: ${configPlano.mesesAteEntrega} meses`)
+    }
 
     for (const item of itensObras) {
       const serieUpper = item.serie.toUpperCase()
@@ -254,13 +260,13 @@ export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPaga
         if (item.inicio) detalhe += ` (início em ${item.inicio})`
         linhas.push(detalhe)
       } else if (serieUpper.includes('ANUAIS') || serieUpper.includes('ANUAL')) {
-        let detalhe = `• Parcelas anuais (${percStr}): `
+        let detalhe = `• Balões anuais (${percStr}): `
         if (item.quantidade > 1) {
           detalhe += `${item.quantidade}x de ${formatCurrency(item.valorParcela)} = ${formatCurrency(item.total)}`
         } else {
           detalhe += formatCurrency(item.total)
         }
-        if (item.inicio) detalhe += ` (início em ${item.inicio})`
+        if (item.inicio) detalhe += ` (vencimento a partir de ${item.inicio})`
         linhas.push(detalhe)
       } else if (serieUpper.includes('ÚNICA') || serieUpper.includes('UNICA')) {
         const linha =
@@ -284,10 +290,11 @@ export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPaga
     const percChaves = res?.percentualAteChaves ?? 30
     const montanteChaves = res?.montanteAteChaves || valImovel * (percChaves / 100)
     if (montanteChaves > 0) {
-      linhas.push(`• Total pago até as chaves (${percChaves}%): ${formatCurrency(montanteChaves)}`)
+      linhas.push(
+        `• Total pago até as chaves (${formatPercent(percChaves, 1)}): ${formatCurrency(montanteChaves)}`,
+      )
     }
   }
-
   // Quitação na Entrega / Financiamento
   const saldoFinanciar = res?.saldoRestanteFinanciar || 0
   const financ = res?.financiamento

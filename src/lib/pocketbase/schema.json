@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T11:30:55.642Z",
+  "generatedAt": "2026-09-09T12:22:44.534Z",
   "collections": [
     {
       "name": "users",
@@ -202,6 +202,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "meses_ate_entrega",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "config_plano_pagamento",
+          "type": "json",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

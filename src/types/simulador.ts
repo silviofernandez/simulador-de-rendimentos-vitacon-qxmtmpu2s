@@ -10,14 +10,49 @@ export interface EmpreendimentoRecord {
 }
 
 export interface PlanoPagamentoItem {
+  id?: string
   serie: string
   inicio: string // Formato exibição: ex. "Abr/2025"
+  mesesOffset?: number // meses a partir do mês atual/início (0 = ato, 1 = sinal, etc.)
   quantidade: number
   valorParcela: number
   total: number
   percentual: number
   percentualParcela: number
   fase: 'Em Obras' | 'Financiamento'
+}
+
+export interface BalaoConfig {
+  id: string
+  mesOffset: number // Em qual mês da obra cai (ex: 12, 24, 36)
+  percentual?: number // % do valor do imóvel (ou recalcula proporcional)
+  valorManual?: number
+}
+
+export interface ConfigPlanoPagamento {
+  // Prazos mestres
+  mesesAteEntrega: number // ex: 22 (parâmetro mestre)
+  prazoTotalObraMeses: number // prazo original/total da obra do lançamento (ex: 24, 36)
+
+  // Quantidades de parcelas
+  qtdMensais: number // ex: 22 ou 36
+  qtdSinais: number // ex: 3
+  qtdBaloes: number // ex: 2 ou 3
+
+  // Percentuais de cada linha (% do valor do imóvel)
+  percAto?: number // ex: 10
+  percSinais?: number // ex: 5
+  percMensais?: number // ex: 5
+  percBaloesTotal?: number // ex: 5
+  percUnica?: number // ex: 5
+
+  // Configuração detalhada de cada balão
+  baloes: BalaoConfig[]
+
+  // Overrides manuais opcionais de valores
+  valorAtoManual?: number
+  valorUnicaManual?: number
+  valorParcelaMensalManual?: number
 }
 
 export interface CustosOperacionaisDetalhados {
@@ -122,6 +157,7 @@ export interface ResultadosSimulacao {
   // Valorização e legado
   valorizacaoObraPercent: number
   mediaValorAtivoEntrega: number
+  configPlanoPagamento?: ConfigPlanoPagamento
   planoPagamento: PlanoPagamentoItem[]
 
   // Legado de compatibilidade
@@ -149,6 +185,8 @@ export interface SimulacaoRecord {
   taxa_ocupacao: number // decimal 0 - 1
   custos_operacionais: number // decimal 0 - 1
   valorizacao_obra: number // decimal 0 - 1
+  meses_ate_entrega?: number
+  config_plano_pagamento?: ConfigPlanoPagamento
   resultados: ResultadosSimulacao
   created?: string
   updated?: string

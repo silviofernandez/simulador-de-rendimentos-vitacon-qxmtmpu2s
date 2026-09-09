@@ -5,6 +5,8 @@ import {
   ParametrosFinanciamento,
   ResultadoFinanciamento,
   PontoEquilibrio,
+  ConfigPlanoPagamento,
+  BalaoConfig,
 } from '@/types/simulador'
 
 export const formatCurrency = (val: number): string => {
@@ -195,6 +197,45 @@ export interface InputSimulacaoAvancada {
   // Cronograma / Valorização
   valorizacaoObraPerc?: number // decimal 0..1 (default 0.32)
   dataInicioObra?: Date
+
+  // Configuração avançada de prazos e parcelas do Plano de Pagamento
+  configPlano?: Partial<ConfigPlanoPagamento>
+}
+
+/**
+ * Gera a lista de parcelas de balões com seus prazos e valores
+ */
+export function gerarBaloesPadrao(
+  qtdBaloes: number,
+  mesesAteEntrega: number,
+  percAnoTotal: number,
+): BalaoConfig[] {
+  const baloes: BalaoConfig[] = []
+  const qtd = Math.max(0, qtdBaloes)
+  if (qtd === 0) return []
+
+  const percPorBalao = percAnoTotal / qtd
+
+  // Distribui os balões ao longo dos meses de obra (ex: se 3 balões e entrega em 36 meses -> 12, 24, 36)
+  // Se entrega for menor (ex: 22 meses e 2 balões -> mês 10 e mês 20)
+  for (let i = 1; i <= qtd; i++) {
+    // Intervalo uniforme baseado no tempo restante ou anual padrão (12, 24, 36)
+    let mesOffset = Math.round((mesesAteEntrega / (qtd + 1)) * i)
+    // Se o prazo for múltiplo ou próximo de ano (ex: 24, 36), alinha em 12, 24...
+    if (i * 12 <= mesesAteEntrega) {
+      mesOffset = i * 12
+    }
+    // Garante que não ultrapasse a entrega
+    mesOffset = Math.min(mesesAteEntrega, Math.max(1, mesOffset))
+
+    baloes.push({
+      id: `balao_${i}`,
+      mesOffset,
+      percentual: percPorBalao,
+    })
+  }
+
+  return baloes
 }
 
 /**
@@ -203,18 +244,78 @@ export interface InputSimulacaoAvancada {
 export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): ResultadosSimulacao {
   const {
     valorImovel,
-    percentualAteChavesPerc,
+    percentualAteChavesPerc: percentualAteChavesProp,
     valorDecoracao,
     valorDiaria,
     taxaOcupacaoPerc,
     custosDetalhados,
     financiamento: paramFinanc,
     valorizacaoObraPerc = 0.32,
-    dataInicioObra = new Date(2025, 3, 1),
+    dataInicioObra = new Date(),
+    configPlano,
   } = params
 
-  // 1. INVESTIMENTO
   const valorImovelSemDecoracao = Math.max(0, valorImovel)
+
+  // 0. DEFINIÇÃO DA CONFIGURAÇÃO DO PLANO DE PAGAMENTO
+  // Defaults alinhados ao slide Vitacon:
+  // Base total: 10% Ato + 5% Sinal + 5% Mensais + 5% Balões + 5% Única = 30% até as chaves
+  // 70% Financiamento (sendo 69.895% financiamento e 0.105% periodicidade, ou proporcional)
+  const mesesAteEntrega =
+    configPlano?.mesesAteEntrega !== undefined ? Math.max(1, configPlano.mesesAteEntrega) : 24
+  const prazoTotalObraMeses = configPlano?.prazoTotalObraMeses ?? 24
+
+  // Quantidade de mensais: se não informada explicitamente, assume os meses restantes até entrega (ex: 22)
+  const qtdMensais =
+    configPlano?.qtdMensais !== undefined
+      ? Math.max(1, configPlano.qtdMensais)
+      : Math.min(mesesAteEntrega, 23)
+
+  const qtdSinais = configPlano?.qtdSinais !== undefined ? Math.max(0, configPlano.qtdSinais) : 3
+  const qtdBaloes = configPlano?.qtdBaloes !== undefined ? Math.max(0, configPlano.qtdBaloes) : 2
+
+  // Percentuais base (se informados usam o customizado, senão calculam proporcional ao percentualAteChaves)
+  // Se o usuário passou percentuais customizados explícitos no configPlano, eles têm prioridade
+  const percAtoFinal =
+    configPlano?.percAto !== undefined ? configPlano.percAto : (percentualAteChavesProp * 10) / 30
+
+  const percSinaisFinal =
+    configPlano?.percSinais !== undefined
+      ? configPlano.percSinais
+      : (percentualAteChavesProp * 5) / 30
+
+  const percMensaisFinal =
+    configPlano?.percMensais !== undefined
+      ? configPlano.percMensais
+      : (percentualAteChavesProp * 5) / 30
+
+  const percBaloesFinal =
+    configPlano?.percBaloesTotal !== undefined
+      ? configPlano.percBaloesTotal
+      : (percentualAteChavesProp * 5) / 30
+
+  const percUnicaFinal =
+    configPlano?.percUnica !== undefined
+      ? configPlano.percUnica
+      : (percentualAteChavesProp * 5) / 30
+
+  // Total efetivo pago até as chaves derivado da soma das fases em obras
+  const percentualAteChavesCalculado =
+    percAtoFinal + percSinaisFinal + percMensaisFinal + percBaloesFinal + percUnicaFinal
+
+  // Usa o percentual calculado se houver configuração de plano, senão percentualAteChavesProp
+  const percentualAteChavesPerc =
+    configPlano !== undefined ? percentualAteChavesCalculado : percentualAteChavesProp
+
+  // Balões
+  let baloesConfig: BalaoConfig[] = []
+  if (configPlano?.baloes && configPlano.baloes.length === qtdBaloes) {
+    baloesConfig = configPlano.baloes
+  } else {
+    baloesConfig = gerarBaloesPadrao(qtdBaloes, mesesAteEntrega, percBaloesFinal)
+  }
+
+  // 1. INVESTIMENTO
   const patrimonioTotal = valorImovelSemDecoracao + valorDecoracao
   const montanteAteChaves = valorImovelSemDecoracao * (percentualAteChavesPerc / 100)
   const totalInvestidoAporte = montanteAteChaves + valorDecoracao
@@ -276,91 +377,190 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     parcelaFinanciamento: parcelaADeduzir,
   })
 
-  // 8. PLANO DE PAGAMENTO EM OBRAS (30% e 70%)
-  const dataAto = new Date(dataInicioObra)
-  const dataSinal = somarMeses(dataAto, 1)
-  const dataMensais = somarMeses(dataAto, 4)
-  const dataAnuais = somarMeses(dataAto, 12)
-  const dataUnica = somarMeses(dataAto, 34)
-  const dataFinanciamento = somarMeses(dataAto, 35)
-  const dataPeriodicidade = somarMeses(dataAto, 36)
+  // 8. PLANO DE PAGAMENTO EM OBRAS E FINANCIAMENTO
+  // O mês atual de referência para vencimentos futuros
+  const dataBase = new Date(dataInicioObra)
 
-  // Adapta proporção em obras conforme percentualAteChavesPerc
-  const percObrasDecimal = percentualAteChavesPerc / 100
-  const percFinancDecimal = Math.max(0, 1 - percObrasDecimal)
+  // Datas baseadas nos meses restantes até a entrega
+  const dataAto = dataBase
+  const dataSinal = somarMeses(dataBase, 1)
+  // Mensais começam após os sinais se houver, ou no mês subsequente
+  const offsetMensais = qtdSinais > 0 ? 1 : 1
+  const dataMensais = somarMeses(dataBase, offsetMensais)
 
-  const seriesDef: Array<{
-    serie: string
-    data: Date
-    qtd: number
-    percentual: number
-    fase: 'Em Obras' | 'Financiamento'
-  }> = [
-    {
+  // Única: na entrega das chaves ou 1 mês antes
+  const dataUnica = somarMeses(dataBase, Math.max(1, mesesAteEntrega - 1))
+  // Financiamento: no mês da entrega das chaves
+  const dataFinanciamento = somarMeses(dataBase, mesesAteEntrega)
+  // Periodicidade: mês subsequente à entrega
+  const dataPeriodicidade = somarMeses(dataBase, mesesAteEntrega + 1)
+
+  // Percentual restante a financiar
+  const percFinancDecimal = Math.max(0, 1 - percentualAteChavesPerc / 100)
+
+  // Montagem dinâmica dos itens do Plano de Pagamento
+  const planoPagamento: PlanoPagamentoItem[] = []
+
+  // 1. ATO
+  if (percAtoFinal > 0) {
+    const totalAto = configPlano?.valorAtoManual ?? (valorImovelSemDecoracao * percAtoFinal) / 100
+    const percRealAto =
+      valorImovelSemDecoracao > 0 ? (totalAto / valorImovelSemDecoracao) * 100 : percAtoFinal
+    planoPagamento.push({
+      id: 'ato',
       serie: 'ATO',
-      data: dataAto,
-      qtd: 1,
-      percentual: percObrasDecimal * (10 / 30),
+      inicio: formatarMesAno(dataAto),
+      mesesOffset: 0,
+      quantidade: 1,
+      valorParcela: totalAto,
+      total: totalAto,
+      percentual: percRealAto,
+      percentualParcela: percRealAto,
       fase: 'Em Obras',
-    },
-    {
-      serie: 'SINAL',
-      data: dataSinal,
-      qtd: 3,
-      percentual: percObrasDecimal * (5 / 30),
-      fase: 'Em Obras',
-    },
-    {
-      serie: 'MENSAIS',
-      data: dataMensais,
-      qtd: 23,
-      percentual: percObrasDecimal * (5 / 30),
-      fase: 'Em Obras',
-    },
-    {
-      serie: 'ANUAIS',
-      data: dataAnuais,
-      qtd: 2,
-      percentual: percObrasDecimal * (5 / 30),
-      fase: 'Em Obras',
-    },
-    {
-      serie: 'ÚNICA',
-      data: dataUnica,
-      qtd: 1,
-      percentual: percObrasDecimal * (5 / 30),
-      fase: 'Em Obras',
-    },
-    {
-      serie: 'FINANCIAMENTO',
-      data: dataFinanciamento,
-      qtd: 1,
-      percentual: percFinancDecimal * 0.9985,
-      fase: 'Financiamento',
-    },
-    {
-      serie: 'PERIODICIDADE',
-      data: dataPeriodicidade,
-      qtd: 1,
-      percentual: percFinancDecimal * 0.0015,
-      fase: 'Financiamento',
-    },
-  ]
+    })
+  }
 
-  const planoPagamento: PlanoPagamentoItem[] = seriesDef.map((s) => {
-    const totalSerie = valorImovelSemDecoracao * s.percentual
-    const valorParcela = s.qtd > 0 ? totalSerie / s.qtd : 0
-    const percentualParcela = (s.percentual / s.qtd) * 100
-    return {
-      serie: s.serie,
-      inicio: formatarMesAno(s.data),
-      quantidade: s.qtd,
-      valorParcela,
-      total: totalSerie,
-      percentual: s.percentual * 100,
-      percentualParcela,
-      fase: s.fase,
+  // 2. SINAIS
+  if (qtdSinais > 0 && percSinaisFinal > 0) {
+    const totalSinais = (valorImovelSemDecoracao * percSinaisFinal) / 100
+    const valorParcelaSinal = totalSinais / qtdSinais
+    planoPagamento.push({
+      id: 'sinais',
+      serie: qtdSinais > 1 ? 'SINAIS' : 'SINAL',
+      inicio: formatarMesAno(dataSinal),
+      mesesOffset: 1,
+      quantidade: qtdSinais,
+      valorParcela: valorParcelaSinal,
+      total: totalSinais,
+      percentual: percSinaisFinal,
+      percentualParcela: percSinaisFinal / qtdSinais,
+      fase: 'Em Obras',
+    })
+  }
+
+  // 3. MENSAIS
+  // O saldo de mensais é distribuído pelas parcelas mensais restantes
+  // Exemplo do usuário: Se o saldo a pagar é dividido por menos vezes (ex: 22 parcelas em vez de 24),
+  // cada parcela aumenta pois o saldo é dividido por menos meses.
+  if (qtdMensais > 0 && percMensaisFinal > 0) {
+    const totalMensais = (valorImovelSemDecoracao * percMensaisFinal) / 100
+    const valorParcelaMensal = configPlano?.valorParcelaMensalManual ?? totalMensais / qtdMensais
+    const totalEfetivoMensais =
+      configPlano?.valorParcelaMensalManual !== undefined
+        ? valorParcelaMensal * qtdMensais
+        : totalMensais
+    const percEfetivoMensais =
+      valorImovelSemDecoracao > 0
+        ? (totalEfetivoMensais / valorImovelSemDecoracao) * 100
+        : percMensaisFinal
+
+    planoPagamento.push({
+      id: 'mensais',
+      serie: 'MENSAIS',
+      inicio: formatarMesAno(dataMensais),
+      mesesOffset: offsetMensais,
+      quantidade: qtdMensais,
+      valorParcela: valorParcelaMensal,
+      total: totalEfetivoMensais,
+      percentual: percEfetivoMensais,
+      percentualParcela: percEfetivoMensais / qtdMensais,
+      fase: 'Em Obras',
+    })
+  }
+
+  // 4. BALÕES (ANUAIS)
+  // Cada balão pode ser configurado individualmente (mês em que cai e seu valor/percentual)
+  if (qtdBaloes > 0 && baloesConfig.length > 0) {
+    if (qtdBaloes === 1) {
+      const b = baloesConfig[0]
+      const percBalao = b.percentual ?? percBaloesFinal
+      const totalBalao = b.valorManual ?? (valorImovelSemDecoracao * percBalao) / 100
+      const dataBalao = somarMeses(dataBase, b.mesOffset)
+      planoPagamento.push({
+        id: b.id,
+        serie: `ANUAL (${b.mesOffset}º MÊS)`,
+        inicio: formatarMesAno(dataBalao),
+        mesesOffset: b.mesOffset,
+        quantidade: 1,
+        valorParcela: totalBalao,
+        total: totalBalao,
+        percentual: percBalao,
+        percentualParcela: percBalao,
+        fase: 'Em Obras',
+      })
+    } else {
+      // Se múltiplos balões, agrupa como ANUAIS (ou linhas de balões individuais)
+      // Para manter fidelidade à tabela onde tem ANUAIS com Qtd Nx, somamos:
+      const totalBaloes = (valorImovelSemDecoracao * percBaloesFinal) / 100
+      const valorParcelaBalao = totalBaloes / qtdBaloes
+      const primeiroMesBalao = baloesConfig[0]?.mesOffset ?? 12
+      const dataPrimeiroBalao = somarMeses(dataBase, primeiroMesBalao)
+
+      planoPagamento.push({
+        id: 'anuais',
+        serie: 'ANUAIS',
+        inicio: formatarMesAno(dataPrimeiroBalao),
+        mesesOffset: primeiroMesBalao,
+        quantidade: qtdBaloes,
+        valorParcela: valorParcelaBalao,
+        total: totalBaloes,
+        percentual: percBaloesFinal,
+        percentualParcela: percBaloesFinal / qtdBaloes,
+        fase: 'Em Obras',
+      })
     }
+  }
+
+  // 5. ÚNICA
+  if (percUnicaFinal > 0) {
+    const totalUnica =
+      configPlano?.valorUnicaManual ?? (valorImovelSemDecoracao * percUnicaFinal) / 100
+    const percRealUnica =
+      valorImovelSemDecoracao > 0 ? (totalUnica / valorImovelSemDecoracao) * 100 : percUnicaFinal
+    planoPagamento.push({
+      id: 'unica',
+      serie: 'ÚNICA',
+      inicio: formatarMesAno(dataUnica),
+      mesesOffset: Math.max(1, mesesAteEntrega - 1),
+      quantidade: 1,
+      valorParcela: totalUnica,
+      total: totalUnica,
+      percentual: percRealUnica,
+      percentualParcela: percRealUnica,
+      fase: 'Em Obras',
+    })
+  }
+
+  // 6. FINANCIAMENTO
+  const totalFinanciamento = saldoRestanteFinanciar * 0.9985
+  const percFinancTotal = percFinancDecimal * 99.85
+  planoPagamento.push({
+    id: 'financiamento',
+    serie: 'FINANCIAMENTO',
+    inicio: formatarMesAno(dataFinanciamento),
+    mesesOffset: mesesAteEntrega,
+    quantidade: 1,
+    valorParcela: totalFinanciamento,
+    total: totalFinanciamento,
+    percentual: percFinancTotal,
+    percentualParcela: percFinancTotal,
+    fase: 'Financiamento',
+  })
+
+  // 7. PERIODICIDADE
+  const totalPeriodicidade = saldoRestanteFinanciar * 0.0015
+  const percPeriodicidade = percFinancDecimal * 0.15
+  planoPagamento.push({
+    id: 'periodicidade',
+    serie: 'PERIODICIDADE',
+    inicio: formatarMesAno(dataPeriodicidade),
+    mesesOffset: mesesAteEntrega + 1,
+    quantidade: 1,
+    valorParcela: totalPeriodicidade,
+    total: totalPeriodicidade,
+    percentual: percPeriodicidade,
+    percentualParcela: percPeriodicidade,
+    fase: 'Financiamento',
   })
 
   const mediaValorAtivoEntrega = valorImovelSemDecoracao * (1 + valorizacaoObraPerc)
@@ -404,9 +604,25 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     // Ponto de Equilíbrio
     pontoEquilibrio,
 
-    // Valorização
+    // Valorização e Configuração do Plano
     valorizacaoObraPercent: valorizacaoObraPerc * 100,
     mediaValorAtivoEntrega,
+    configPlanoPagamento: {
+      mesesAteEntrega,
+      prazoTotalObraMeses,
+      qtdMensais,
+      qtdSinais,
+      qtdBaloes,
+      percAto: percAtoFinal,
+      percSinais: percSinaisFinal,
+      percMensais: percMensaisFinal,
+      percBaloesTotal: percBaloesFinal,
+      percUnica: percUnicaFinal,
+      baloes: baloesConfig,
+      valorAtoManual: configPlano?.valorAtoManual,
+      valorUnicaManual: configPlano?.valorUnicaManual,
+      valorParcelaMensalManual: configPlano?.valorParcelaMensalManual,
+    },
     planoPagamento,
 
     // Legado de compatibilidade
