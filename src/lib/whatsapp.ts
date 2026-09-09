@@ -13,7 +13,7 @@ export interface DadosParaMensagemWhatsApp {
 }
 
 /**
- * Formata a mensagem de texto com layout amigável para envio ao cliente via WhatsApp
+ * Formata a mensagem de texto formal e profissional para compartilhamento com o cliente
  */
 export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): string {
   const {
@@ -27,7 +27,7 @@ export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): stri
     resultados: res,
   } = dados
 
-  const nomeExibicao = empreendimento || titulo || 'Vitacon'
+  const nomeExibicao = empreendimento || titulo || 'Studio Vitacon'
 
   // Investimento
   const patrimonio = res?.patrimonioTotal || res?.valorTotalImovel || 0
@@ -68,54 +68,88 @@ export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): stri
 
   const linhas: string[] = []
 
-  // Cabeçalho
-  linhas.push(`🏠 *Simulação Vitacon* — ${nomeExibicao}`)
-  if (bairro) {
-    linhas.push(`📍 ${bairro}${metragem ? ` • ${metragem} m²` : ''}`)
-  } else if (metragem) {
-    linhas.push(`📐 Studio: ${metragem} m²`)
+  // Título e identificação do empreendimento (sem emojis)
+  linhas.push(`SIMULAÇÃO DE RENTABILIDADE — ${nomeExibicao.toUpperCase()}`)
+  const detalhesLocalizacao: string[] = []
+  if (bairro) detalhesLocalizacao.push(bairro)
+  if (metragem && metragem > 0) detalhesLocalizacao.push(`${metragem} m²`)
+  if (detalhesLocalizacao.length > 0) {
+    linhas.push(`Localização / Tipologia: ${detalhesLocalizacao.join(' • ')}`)
   }
+  linhas.push(`Data da simulação: ${dataFormatada}`)
 
-  linhas.push('')
-  linhas.push('💰 *Investimento*')
+  // Seção INVESTIMENTO
+  const linhasInvestimento: string[] = []
   if (patrimonio > 0) {
-    linhas.push(`• Patrimônio total (c/ decoração): ${formatCurrency(patrimonio)}`)
+    linhasInvestimento.push(`• Patrimônio total (com decoração): ${formatCurrency(patrimonio)}`)
   }
   if (aporteTotal > 0) {
-    linhas.push(`• Aporte do investidor: ${formatCurrency(aporteTotal)}`)
+    linhasInvestimento.push(`• Aporte do investidor: ${formatCurrency(aporteTotal)}`)
   }
   if (financ && financ.valorFinanciado > 0) {
-    const parcelaStr =
-      financ.parcelaEfetiva > 0
-        ? ` (parcela ~${formatCurrency(financ.parcelaEfetiva)}/mês, ${financ.sistema})`
-        : ''
-    linhas.push(`• Financiamento: ${formatCurrency(financ.valorFinanciado)}${parcelaStr}`)
+    let detalheFinanc = `• Financiamento: ${formatCurrency(financ.valorFinanciado)}`
+    if (financ.parcelaEfetiva > 0) {
+      detalheFinanc += ` (parcela estimada: ${formatCurrency(financ.parcelaEfetiva)}/mês`
+      if (financ.sistema) {
+        detalheFinanc += ` — ${financ.sistema}`
+      }
+      detalheFinanc += ')'
+    }
+    linhasInvestimento.push(detalheFinanc)
   }
 
-  linhas.push('')
-  linhas.push('📈 *Operação mensal (short stay)*')
-  if (diaria > 0 || ocupacao > 0) {
-    linhas.push(`• Diária média: ${formatCurrency(diaria)} | Ocupação: ${ocupacao}%`)
+  if (linhasInvestimento.length > 0) {
+    linhas.push('')
+    linhas.push('INVESTIMENTO')
+    linhas.push(...linhasInvestimento)
   }
+
+  // Seção OPERAÇÃO MENSAL (SHORT STAY)
+  const linhasOperacao: string[] = []
+  if (diaria > 0 && ocupacao > 0) {
+    linhasOperacao.push(`• Diária média: ${formatCurrency(diaria)} | Ocupação: ${ocupacao}%`)
+  } else if (diaria > 0) {
+    linhasOperacao.push(`• Diária média: ${formatCurrency(diaria)}`)
+  } else if (ocupacao > 0) {
+    linhasOperacao.push(`• Ocupação estimada: ${ocupacao}%`)
+  }
+
   if (faturamentoBruto > 0) {
-    linhas.push(`• Receita bruta: ${formatCurrency(faturamentoBruto)}`)
+    linhasOperacao.push(`• Receita bruta mensal: ${formatCurrency(faturamentoBruto)}`)
   }
   if (totalDespesas > 0) {
-    linhas.push(`• Custos + administração Housi: ${formatCurrency(totalDespesas)}`)
+    linhasOperacao.push(`• Custos operacionais e taxa Housi: ${formatCurrency(totalDespesas)}`)
   }
-  linhas.push(`• Sobra líquida no bolso: *${formatCurrency(sobraLiquida)}/mês*`)
-
-  linhas.push('')
-  linhas.push(
-    `✅ *Rentabilidade sobre o aporte:* ${formatPercent(rentabMes, 2)} a.m. (~${formatPercent(rentabAno, 1)} a.a.)`,
-  )
-
-  if (typeof payback === 'number' && payback > 0 && payback < 90) {
-    linhas.push(`⏱ Payback estimado: ${payback.toFixed(1)} anos`)
+  if (sobraLiquida !== 0 || faturamentoBruto > 0) {
+    linhasOperacao.push(`• Sobra líquida no bolso: ${formatCurrency(sobraLiquida)}/mês`)
   }
 
+  if (linhasOperacao.length > 0) {
+    linhas.push('')
+    linhas.push('OPERAÇÃO MENSAL (SHORT STAY)')
+    linhas.push(...linhasOperacao)
+  }
+
+  // Seção RETORNO
+  const linhasRetorno: string[] = []
+  if (rentabMes > 0 || rentabAno > 0) {
+    linhasRetorno.push(
+      `• Rentabilidade sobre o aporte: ${formatPercent(rentabMes, 2)} a.m. (~${formatPercent(rentabAno, 1)} a.a.)`,
+    )
+  }
+  if (typeof payback === 'number' && !isNaN(payback) && payback > 0 && payback < 90) {
+    linhasRetorno.push(`• Payback estimado: ${payback.toFixed(1)} anos`)
+  }
+
+  if (linhasRetorno.length > 0) {
+    linhas.push('')
+    linhas.push('RETORNO')
+    linhas.push(...linhasRetorno)
+  }
+
+  // Frase final obrigatória com a grafia exata solicitada
   linhas.push('')
-  linhas.push(`_Simulado em ${dataFormatada} via Simulador Vitacon._`)
+  linhas.push('Exemplo enviado através de simulador Gabriel Patrimônio')
 
   return linhas.join('\n')
 }
