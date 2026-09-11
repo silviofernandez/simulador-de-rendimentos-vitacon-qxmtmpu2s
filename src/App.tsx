@@ -43,7 +43,13 @@ export default function App() {
             {/* Rota pública de autenticação */}
             <Route path="/auth" element={<AuthPage />} />
 
-            {/* Rotas protegidas envolvidas pelo Layout global */}
+            {/* Simulador e simulações: públicos (link compartilhável, sem login) */}
+            <Route element={<Layout />}>
+              <Route path="/" element={<IndexPage />} />
+              <Route path="/simulacoes" element={<SimulacoesPage />} />
+            </Route>
+
+            {/* Base de Dados: apenas para contas autenticadas (equipe) */}
             <Route
               element={
                 <ProtectedRoute>
@@ -51,8 +57,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<IndexPage />} />
-              <Route path="/simulacoes" element={<SimulacoesPage />} />
               <Route
                 path="/database"
                 element={

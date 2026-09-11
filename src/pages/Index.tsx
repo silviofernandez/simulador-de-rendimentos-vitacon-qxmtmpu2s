@@ -663,12 +663,14 @@ export default function IndexPage() {
 
           {/* Modal de Salvar */}
           <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-[#0F6B4F] hover:bg-[#0B5740] text-white rounded-xl gap-2 font-semibold shadow-md shadow-[#0F6B4F]/20 active:scale-95 transition-transform text-xs sm:text-sm">
-                <Save className="h-4 w-4" />
-                <span>Salvar Simulação</span>
-              </Button>
-            </DialogTrigger>
+            {user && (
+              <DialogTrigger asChild>
+                <Button className="bg-[#0F6B4F] hover:bg-[#0B5740] text-white rounded-xl gap-2 font-semibold shadow-md shadow-[#0F6B4F]/20 active:scale-95 transition-transform text-xs sm:text-sm">
+                  <Save className="h-4 w-4" />
+                  <span>Salvar Simulação</span>
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent className="rounded-2xl border-[#E3DFD6] bg-white sm:max-w-md">
               <form onSubmit={handleSalvarSimulacao}>
                 <DialogHeader>
