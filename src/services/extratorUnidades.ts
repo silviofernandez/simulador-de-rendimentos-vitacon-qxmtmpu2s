@@ -17,6 +17,9 @@ export interface ExtracaoResult {
   sucesso: boolean
   unidades: UnidadeExtraida[]
   total: number
+  dataEntregaChaves?: string | null
+  mesesAteEntrega?: number
+  detalhesChaves?: string | null
   resumo?: string
   aviso?: string
   rawText?: string
@@ -224,6 +227,9 @@ export async function extrairUnidadesDeArquivo(file: File): Promise<ExtracaoResu
         sucesso: true,
         unidades: mapeadas,
         total: mapeadas.length,
+        dataEntregaChaves: res.dataEntregaChaves,
+        mesesAteEntrega: res.mesesAteEntrega,
+        detalhesChaves: res.detalhesChaves,
         resumo: res.resumo || `${mapeadas.length} unidades encontradas`,
         aviso: res.truncated
           ? 'O arquivo é grande e algumas páginas finais podem não ter sido lidas.'

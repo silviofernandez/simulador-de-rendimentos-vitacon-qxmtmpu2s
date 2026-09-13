@@ -6,6 +6,7 @@ export interface EmpreendimentoRecord {
   valor_diaria: number
   valor_m2: number
   meses_ate_entrega?: number
+  data_entrega_chaves?: string // YYYY-MM-DD ou YYYY-MM
   descricao?: string
   created?: string
   updated?: string
@@ -34,6 +35,7 @@ export interface BalaoConfig {
 export interface ConfigPlanoPagamento {
   // Prazos mestres
   mesesAteEntrega: number // ex: 22 (parâmetro mestre)
+  dataEntregaChaves?: string // YYYY-MM-DD (fonte de verdade para prazo dinâmico)
   prazoTotalObraMeses: number // prazo original/total da obra do lançamento (ex: 24, 36)
 
   // Quantidades de parcelas

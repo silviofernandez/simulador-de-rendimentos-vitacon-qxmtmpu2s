@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T21:30:41.272Z",
+  "generatedAt": "2026-09-13T21:41:57.727Z",
   "collections": [
     {
       "name": "users",
@@ -120,6 +120,12 @@
         },
         {
           "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_entrega_chaves",
           "type": "text",
           "required": false,
           "system": false

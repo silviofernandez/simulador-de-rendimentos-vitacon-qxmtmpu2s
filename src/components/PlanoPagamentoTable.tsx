@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { PlanoPagamentoItem, ConfigPlanoPagamento, BalaoConfig } from '@/types/simulador'
-import { formatCurrency, formatCurrencyDetailed, formatPercent } from '@/lib/calculos'
+import {
+  formatCurrency,
+  formatCurrencyDetailed,
+  formatPercent,
+  formatarPrazoEntregaTexto,
+} from '@/lib/calculos'
 import {
   Table,
   TableBody,
@@ -32,6 +37,7 @@ interface PlanoPagamentoTableProps {
   valorTotalImovel: number
   percentualAteChaves?: number
   configPlano: ConfigPlanoPagamento
+  dataEntregaChaves?: string
   onChangeConfigPlano?: (novaConfig: ConfigPlanoPagamento) => void
   onRestaurarConfigPadrao?: () => void
   onCompartilharWhatsApp?: () => void
@@ -43,6 +49,7 @@ export function PlanoPagamentoTable({
   valorTotalImovel,
   percentualAteChaves = 30,
   configPlano,
+  dataEntregaChaves,
   onChangeConfigPlano,
   onRestaurarConfigPadrao,
   onCompartilharWhatsApp,
@@ -207,9 +214,34 @@ export function PlanoPagamentoTable({
           </span>
         </div>
 
+        {/* Banner com a Data de Entrega das Chaves */}
+        {(dataEntregaChaves || configPlano.dataEntregaChaves) && (
+          <div className="rounded-xl bg-white p-3 border border-[#0F6B4F]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#0F6B4F]/10 text-[#0F6B4F] shrink-0">
+                <Check className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-[#0F6B4F] block">
+                  Entrega das chaves derivada do fluxo
+                </span>
+                <span className="text-xs font-bold text-[#1F2A24]">
+                  {formatarPrazoEntregaTexto(
+                    dataEntregaChaves || configPlano.dataEntregaChaves,
+                    configPlano.mesesAteEntrega,
+                  )}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] text-[#5E6E64] sm:text-right">
+              Calculado dinamicamente: data da simulação → data da entrega
+            </span>
+          </div>
+        )}
+
         {/* Linha dos 3 Controles Mestres: Meses até entrega, Parcelas mensais, Balões anuais */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {/* 1. Meses restantes até a entrega (Parâmetro Mestre) */}
+          {/* 1. Meses restantes até a entrega (Parâmetro Mestre com Override) */}
           <div className="rounded-xl bg-white p-2.5 border border-[#E3DFD6] shadow-2xs space-y-1">
             <div className="flex items-center justify-between">
               <Label
@@ -219,14 +251,14 @@ export function PlanoPagamentoTable({
                 Meses até a entrega
               </Label>
               <Badge className="bg-[#0F6B4F]/10 text-[#0F6B4F] text-[10px] px-1.5 py-0 border-0">
-                Mestre
+                Dinâmico
               </Badge>
             </div>
             <div className="flex items-center gap-2">
               <Input
                 id="input-meses-entrega"
                 type="number"
-                min={1}
+                min={0}
                 max={120}
                 value={configPlano.mesesAteEntrega === 0 ? '' : configPlano.mesesAteEntrega}
                 onFocus={(e) => {
@@ -234,14 +266,16 @@ export function PlanoPagamentoTable({
                 }}
                 onChange={(e) => {
                   const val = e.target.value === '' ? 0 : parseInt(e.target.value, 10)
-                  handleUpdate('mesesAteEntrega', isNaN(val) ? 1 : val)
+                  handleUpdate('mesesAteEntrega', isNaN(val) ? 0 : val)
                 }}
                 className="h-9 rounded-lg border-[#E3DFD6] text-xs font-bold text-[#0F6B4F] focus-visible:ring-[#0F6B4F]"
               />
               <span className="text-xs text-[#5E6E64] font-medium shrink-0">meses</span>
             </div>
             <p className="text-[10px] text-[#5E6E64] leading-tight">
-              Ex: Domingos faltavam 24, agora faltam 22m
+              {configPlano.mesesAteEntrega <= 0
+                ? 'Prazo vencido (obra entregue)'
+                : `Diminui com o tempo e ajusta parcelas`}
             </p>
           </div>
 

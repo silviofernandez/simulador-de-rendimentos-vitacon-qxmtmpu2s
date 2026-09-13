@@ -47,7 +47,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CurrencyInput } from '@/components/CurrencyInput'
-import { formatCurrency } from '@/lib/calculos'
+import { formatCurrency, calcularMesesAteEntrega, formatarPrazoEntregaTexto } from '@/lib/calculos'
 import { criarEmpreendimento } from '@/services/empreendimentos'
 import { criarMidia } from '@/services/midias'
 import { salvarListaUnidadesEmpreendimento } from '@/services/unidades'
@@ -75,6 +75,8 @@ export default function NovoEmpreendimentoPage() {
   const [valorM2, setValorM2] = useState<number>(38000)
   const [valorDiaria, setValorDiaria] = useState<number>(380)
   const [mesesAteEntrega, setMesesAteEntrega] = useState<number>(24)
+  const [dataEntregaChaves, setDataEntregaChaves] = useState<string>('')
+  const [avisoPrazoDetectado, setAvisoPrazoDetectado] = useState<string>('')
   const [descricao, setDescricao] = useState('')
 
   // 2. Book de Marketing
@@ -145,6 +147,32 @@ export default function NovoEmpreendimentoPage() {
       const res = await extrairUnidadesDeArquivo(file)
       if (res.sucesso && res.unidades.length > 0) {
         setUnidadesExtraidas(res.unidades)
+
+        // Se detectou a data de entrega das chaves da tabela
+        if (res.dataEntregaChaves) {
+          setDataEntregaChaves(res.dataEntregaChaves)
+          const mesesCalc =
+            typeof res.mesesAteEntrega === 'number'
+              ? res.mesesAteEntrega
+              : calcularMesesAteEntrega(res.dataEntregaChaves)
+          setMesesAteEntrega(mesesCalc)
+          const textoPrazo = formatarPrazoEntregaTexto(res.dataEntregaChaves, mesesCalc)
+          setAvisoPrazoDetectado(
+            `Prazo de entrega das chaves identificado na tabela: ${textoPrazo}${
+              res.detalhesChaves ? ` (${res.detalhesChaves})` : ''
+            }`,
+          )
+          toast.success(`Prazo identificado pelo fluxo: ${textoPrazo}`)
+        } else if (typeof res.mesesAteEntrega === 'number' && res.mesesAteEntrega > 0) {
+          setMesesAteEntrega(res.mesesAteEntrega)
+          // Estimar data de entrega
+          const dEst = new Date()
+          dEst.setMonth(dEst.getMonth() + res.mesesAteEntrega)
+          const iso = `${dEst.getFullYear()}-${String(dEst.getMonth() + 1).padStart(2, '0')}-01`
+          setDataEntregaChaves(iso)
+          setAvisoPrazoDetectado(`Prazo de entrega detectado: ${res.mesesAteEntrega} meses`)
+        }
+
         setStatusLeitura(`${res.unidades.length} unidades encontradas com sucesso!`)
         toast.success(`${res.unidades.length} unidades extraídas do documento!`)
         if (res.aviso) toast.info(res.aviso)
@@ -268,6 +296,7 @@ export default function NovoEmpreendimentoPage() {
         valor_m2: valorM2,
         valor_diaria: valorDiaria,
         meses_ate_entrega: mesesAteEntrega,
+        data_entrega_chaves: dataEntregaChaves.trim() || undefined,
         descricao: descricao.trim() || undefined,
       })
 
@@ -509,21 +538,60 @@ export default function NovoEmpreendimentoPage() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-[#1F2A24]">
-                  Meses até a Entrega das Chaves
+                  Data de Entrega das Chaves (ou Meses Restantes)
                 </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="72"
-                  value={mesesAteEntrega}
-                  onChange={(e) => setMesesAteEntrega(parseInt(e.target.value, 10) || 0)}
-                  className="h-10 rounded-xl border-[#E3DFD6] text-xs"
-                />
-                <span className="text-[10px] text-[#5E6E64]">
-                  Prazo de obra para o plano de pagamento
+                <div className="flex gap-2">
+                  <Input
+                    type="month"
+                    value={dataEntregaChaves ? dataEntregaChaves.slice(0, 7) : ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val) {
+                        const isoCompleto = `${val}-01`
+                        setDataEntregaChaves(isoCompleto)
+                        const meses = calcularMesesAteEntrega(isoCompleto)
+                        setMesesAteEntrega(meses)
+                      } else {
+                        setDataEntregaChaves('')
+                      }
+                    }}
+                    className="h-10 rounded-xl border-[#E3DFD6] text-xs flex-1"
+                  />
+                  <div className="w-24 shrink-0">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={mesesAteEntrega}
+                      onChange={(e) => {
+                        const m = parseInt(e.target.value, 10) || 0
+                        setMesesAteEntrega(m)
+                        // Atualiza data estimada
+                        const d = new Date()
+                        d.setMonth(d.getMonth() + m)
+                        const mesStr = String(d.getMonth() + 1).padStart(2, '0')
+                        setDataEntregaChaves(`${d.getFullYear()}-${mesStr}-01`)
+                      }}
+                      className="h-10 rounded-xl border-[#E3DFD6] text-xs text-center font-bold text-[#0F6B4F]"
+                      title="Meses restantes calculados"
+                    />
+                  </div>
+                </div>
+                <span className="text-[10px] text-[#5E6E64] block">
+                  {dataEntregaChaves
+                    ? formatarPrazoEntregaTexto(dataEntregaChaves, mesesAteEntrega)
+                    : `Faltam ${mesesAteEntrega} meses para a entrega`}
                 </span>
               </div>
             </div>
+
+            {/* Aviso de Prazo Detectado Automaticamente pelo fluxo da tabela */}
+            {avisoPrazoDetectado && (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 flex items-center gap-2 text-xs text-[#0F6B4F]">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="font-medium">{avisoPrazoDetectado}</span>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-[#1F2A24]">
@@ -1132,8 +1200,12 @@ export default function NovoEmpreendimentoPage() {
               <p className="text-xs text-[#5E6E64]">
                 {bairro} • {formatCurrency(valorM2)}/m²
               </p>
+              <p className="text-[11px] text-[#0F6B4F] font-semibold mt-0.5">
+                {dataEntregaChaves
+                  ? formatarPrazoEntregaTexto(dataEntregaChaves, mesesAteEntrega)
+                  : `Prazo: ${mesesAteEntrega} meses`}
+              </p>
             </div>
-
             <div className="p-4 rounded-xl border border-[#E3DFD6] bg-[#F7F5F1]">
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#0F6B4F] block">
                 Book de Marketing

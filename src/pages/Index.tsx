@@ -17,6 +17,8 @@ import {
   formatCurrency,
   formatPercent,
   mesesNomesAbrev,
+  calcularMesesAteEntrega,
+  formatarPrazoEntregaTexto,
 } from '@/lib/calculos'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -128,6 +130,7 @@ export default function IndexPage() {
   // Base de empreendimentos do PocketBase
   const [empreendimentos, setEmpreendimentos] = useState<EmpreendimentoRecord[]>([])
   const [selectedEmpreendimentoId, setSelectedEmpreendimentoId] = useState<string>('')
+  const [dataEntregaChavesEmpreendimento, setDataEntregaChavesEmpreendimento] = useState<string>('')
 
   // Unidades do empreendimento selecionado
   const [unidadesDoEmpreendimento, setUnidadesDoEmpreendimento] = useState<UnidadeRecord[]>([])
@@ -352,6 +355,16 @@ export default function IndexPage() {
         const domingos = data.find((e) => e.nome.includes('Domingos de Morais'))
         if (domingos) {
           setSelectedEmpreendimentoId(domingos.id)
+          if (domingos.data_entrega_chaves) {
+            setDataEntregaChavesEmpreendimento(domingos.data_entrega_chaves)
+            const m = calcularMesesAteEntrega(domingos.data_entrega_chaves)
+            setConfigPlano((prev) => ({
+              ...prev,
+              mesesAteEntrega: m,
+              dataEntregaChaves: domingos.data_entrega_chaves,
+              qtdMensais: Math.max(1, m),
+            }))
+          }
           listarUnidades(domingos.nome).then((lista) => {
             setUnidadesDoEmpreendimento(lista)
           })
@@ -367,9 +380,25 @@ export default function IndexPage() {
     setBairro(emp.bairro)
     setEndereco(emp.endereco)
     setValorDiaria(emp.valor_diaria)
+    setDataEntregaChavesEmpreendimento(emp.data_entrega_chaves || '')
+
     // Reseta unidade selecionada
     setSelectedUnidadeId('')
     setUnidadeSelecionada(null)
+
+    // Prazo dinâmico até a entrega das chaves
+    let mesesDinamicos = emp.meses_ate_entrega || 22
+    if (emp.data_entrega_chaves) {
+      mesesDinamicos = calcularMesesAteEntrega(emp.data_entrega_chaves)
+    }
+
+    // Se a entrega for no passado ou 0 meses, trata graciosamente (ex: 0)
+    setConfigPlano((prev) => ({
+      ...prev,
+      mesesAteEntrega: mesesDinamicos,
+      dataEntregaChaves: emp.data_entrega_chaves,
+      qtdMensais: Math.max(1, mesesDinamicos),
+    }))
 
     // Busca unidades vinculadas a este empreendimento
     const listaUnidades = await listarUnidades(emp.nome)
@@ -442,7 +471,14 @@ export default function IndexPage() {
     // Carrega config de prazos se existir na simulação ou usa padrão compatível
     const configSalva = s.config_plano_pagamento || res?.configPlanoPagamento
     if (configSalva) {
-      setConfigPlano(configSalva)
+      let mesesAjustados = configSalva.mesesAteEntrega
+      if (configSalva.dataEntregaChaves) {
+        mesesAjustados = calcularMesesAteEntrega(configSalva.dataEntregaChaves)
+      }
+      setConfigPlano({
+        ...configSalva,
+        mesesAteEntrega: mesesAjustados,
+      })
     } else if (s.meses_ate_entrega) {
       setConfigPlano((prev) => ({
         ...prev,
@@ -982,17 +1018,28 @@ export default function IndexPage() {
                   </div>
                 )}
 
-                {/* Sub-informações */}
-                <div className="mt-1 rounded-xl bg-[#F7F5F1] p-2.5 border border-[#E3DFD6] text-xs flex items-center justify-between">
+                {/* Sub-informações e Data de Entrega das Chaves */}
+                <div className="mt-1 rounded-xl bg-[#F7F5F1] p-2.5 border border-[#E3DFD6] text-xs space-y-1">
                   <div className="flex items-center gap-1.5 text-[#5E6E64] truncate">
                     <Home className="h-3.5 w-3.5 text-[#0F6B4F] shrink-0" />
                     <span className="truncate">
                       {endereco} — <strong>{bairro}</strong>
                     </span>
                   </div>
+                  {(dataEntregaChavesEmpreendimento || configPlano.dataEntregaChaves) && (
+                    <div className="flex items-center gap-1.5 text-[#0F6B4F] font-semibold pt-1 border-t border-[#E3DFD6]/60">
+                      <Calendar className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Entrega das chaves:{' '}
+                        {formatarPrazoEntregaTexto(
+                          dataEntregaChavesEmpreendimento || configPlano.dataEntregaChaves,
+                          configPlano.mesesAteEntrega,
+                        )}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-
               {/* Valor do Imóvel e Metragem */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -1384,12 +1431,12 @@ export default function IndexPage() {
             valorTotalImovel={resultados.valorImovelSemDecoracao}
             percentualAteChaves={percentualAteChaves}
             configPlano={configPlano}
+            dataEntregaChaves={dataEntregaChavesEmpreendimento || configPlano.dataEntregaChaves}
             onChangeConfigPlano={handleConfigPlanoChange}
             onRestaurarConfigPadrao={handleRestaurarConfigPlanoPadrao}
             onCompartilharWhatsApp={handleCompartilharWhatsAppPlano}
             onCopiarPlano={handleCopiarPlanoPagamento}
           />
-
           {/* Seção 5: Gráfico de Valorização no Período de Obra */}
           <Card className="rounded-2xl border border-[#E3DFD6] bg-white p-5 shadow-sm">
             <AppreciationChart

@@ -308,8 +308,14 @@ export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPaga
     linhas.push('FLUXO DE PAGAMENTO (EM OBRAS)')
 
     // Prazos Mestres informados na mensagem
-    if (configPlano?.mesesAteEntrega) {
-      linhas.push(`• Prazo até a entrega das chaves: ${configPlano.mesesAteEntrega} meses`)
+    if (configPlano?.mesesAteEntrega !== undefined) {
+      if (configPlano.dataEntregaChaves) {
+        linhas.push(
+          `• Prazo até a entrega das chaves: ${configPlano.mesesAteEntrega} meses (${configPlano.dataEntregaChaves.slice(0, 7)})`,
+        )
+      } else {
+        linhas.push(`• Prazo até a entrega das chaves: ${configPlano.mesesAteEntrega} meses`)
+      }
     }
 
     for (const item of itensObras) {

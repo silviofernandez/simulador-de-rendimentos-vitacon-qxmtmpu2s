@@ -61,6 +61,103 @@ export const somarMeses = (date: Date, meses: number): Date => {
 }
 
 /**
+ * Calcula a quantidade de meses inteiros entre uma data base (ou hoje) e a data de entrega das chaves.
+ * Se a entrega for no passado, retorna 0 (tratamento gracioso).
+ * Ex: Se dataBase = Março/2025 e dataEntrega = Janeiro/2027 => 22 meses.
+ */
+export function calcularMesesAteEntrega(
+  dataEntrega: string | Date | null | undefined,
+  dataReferencia: Date = new Date(),
+): number {
+  if (!dataEntrega) return 0
+
+  const dEntrega =
+    typeof dataEntrega === 'string' ? parseDataEntregaISO(dataEntrega) : new Date(dataEntrega)
+
+  if (!dEntrega || isNaN(dEntrega.getTime())) return 0
+
+  const anoRef = dataReferencia.getFullYear()
+  const mesRef = dataReferencia.getMonth()
+
+  const anoEntrega = dEntrega.getFullYear()
+  const mesEntrega = dEntrega.getMonth()
+
+  const diffMeses = (anoEntrega - anoRef) * 12 + (mesEntrega - mesRef)
+  return Math.max(0, diffMeses)
+}
+
+/**
+ * Converte string 'YYYY-MM-DD' ou 'YYYY-MM' ou 'MM/YYYY' para objeto Date (dia 1)
+ */
+export function parseDataEntregaISO(dataStr: string): Date | null {
+  if (!dataStr) return null
+  const clean = dataStr.trim()
+
+  // Formato ISO YYYY-MM-DD ou YYYY-MM
+  const matchIso = clean.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/)
+  if (matchIso) {
+    const ano = parseInt(matchIso[1], 10)
+    const mes = parseInt(matchIso[2], 10) - 1
+    const dia = matchIso[3] ? parseInt(matchIso[3], 10) : 1
+    return new Date(ano, mes, dia)
+  }
+
+  // Formato brasileiro MM/YYYY ou DD/MM/YYYY
+  const matchBr = clean.match(/^(?:(\d{1,2})\/)?(\d{1,2})\/(\d{4})/)
+  if (matchBr) {
+    const ano = parseInt(matchBr[3], 10)
+    const mes = parseInt(matchBr[2], 10) - 1
+    const dia = matchBr[1] ? parseInt(matchBr[1], 10) : 1
+    return new Date(ano, mes, dia)
+  }
+
+  const d = new Date(clean)
+  return isNaN(d.getTime()) ? null : d
+}
+
+/**
+ * Formata a data de entrega amigavelmente para exibição:
+ * Ex: "março/2027 — faltam 22 meses"
+ */
+export function formatarPrazoEntregaTexto(
+  dataEntrega: string | Date | null | undefined,
+  mesesCalculados?: number,
+  dataReferencia: Date = new Date(),
+): string {
+  if (!dataEntrega) {
+    if (typeof mesesCalculados === 'number' && mesesCalculados > 0) {
+      return `${mesesCalculados} meses restantes`
+    }
+    return 'Prazo não definido'
+  }
+
+  const d =
+    typeof dataEntrega === 'string' ? parseDataEntregaISO(dataEntrega) : new Date(dataEntrega)
+
+  if (!d || isNaN(d.getTime())) {
+    if (typeof mesesCalculados === 'number' && mesesCalculados > 0) {
+      return `${mesesCalculados} meses restantes`
+    }
+    return 'Prazo não definido'
+  }
+
+  const meses =
+    mesesCalculados !== undefined ? mesesCalculados : calcularMesesAteEntrega(d, dataReferencia)
+
+  const nomeMesExtenso = d.toLocaleDateString('pt-BR', { month: 'long' })
+  const ano = d.getFullYear()
+  const dataFormatada = `${nomeMesExtenso}/${ano}`
+
+  if (meses <= 0) {
+    return `${dataFormatada} — Obra concluída / Pronto para morar`
+  }
+  if (meses === 1) {
+    return `${dataFormatada} — falta 1 mês para entrega`
+  }
+  return `${dataFormatada} — faltam ${meses} meses`
+}
+
+/**
  * Calcula a amortização por SAC ou Price
  */
 export function calcularFinanciamento(params: ParametrosFinanciamento): ResultadoFinanciamento {

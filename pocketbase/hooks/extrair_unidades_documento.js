@@ -42,24 +42,32 @@ routerAdd(
     }
 
     // 2. Usar $ai.chat com modelo 'fast' para transformar o markdown/texto em lista de unidades JSON estruturada
+    // e também extrair o fluxo de pagamento com foco na parcela "nas chaves" / data de entrega das chaves.
     try {
       const promptSistema =
         'Você é um especialista em extrair dados de tabelas e mapas de disponibilidade de empreendimentos imobiliários da Vitacon. ' +
-        'Seu objetivo é extrair uma lista de unidades disponíveis, reservadas ou vendidas a partir do documento. ' +
+        'Seu objetivo é: ' +
+        '1) Extrair uma lista de unidades disponíveis, reservadas ou vendidas. ' +
+        '2) Identificar no documento/tabela o fluxo ou plano de pagamento, localizando especificamente a parcela "nas chaves", "chaves", "entrega das chaves" ou "conclusão da obra". ' +
+        'O prazo de entrega das chaves deve ser DERIVADO DO PRÓPRIO FLUXO DE PAGAMENTO: a fase/parcela "nas chaves" ou última data de entrega do fluxo define a data de entrega. ' +
         'Retorne APENAS um JSON válido no formato: ' +
-        '{"unidades": [{"unidade": "401", "andar": 4, "tipologia": "NR", "metragem": 20.55, "valor": 435000, "status": "disponivel", "observacoes": ""}], "resumo": "..."}. ' +
-        'Regras: ' +
-        "1. 'unidade' deve ser o número ou identificador da unidade (ex: '101', '402', '1401', '12A'). " +
-        "2. 'andar' deve ser um número inteiro (ex: se unidade 401, andar 4; se 1201, andar 12; se não souber, deduza ou deixe null). " +
-        "3. 'tipologia' deve ser EXATAMENTE um destes 4 valores: 'R2V', 'NR', 'HIS' ou 'HMP'. " +
-        "   Se o texto mencionar 'Residencial' ou 'R2V' -> 'R2V'. " +
-        "   Se mencionar 'Não Residencial', 'NR' ou 'Serviço de Moradia' -> 'NR'. " +
-        "   Se mencionar 'HIS' ou 'HIS-2' -> 'HIS'. " +
-        "   Se mencionar 'HMP' -> 'HMP'. Padrão se desconhecido: 'NR'. " +
-        "4. 'metragem' deve ser um número float em m² (ex: 20.55). " +
-        "5. 'valor' deve ser um número float em Reais (ex: 435000.00). Remova 'R$', pontos de milhar e converta centavos. Se estiver sem valor ou zero, coloque 0. " +
-        "6. 'status' deve ser 'disponivel', 'reservada' ou 'vendida'. Se constar 'vendida', 'sold' ou tachada -> 'vendida'. Se constar 'reservada' -> 'reservada'. Caso contrário -> 'disponivel'. " +
-        '7. Ignore cabeçalhos, rodapés, nomes de corretores e textos institucionais. Retorne estritamente o JSON sem blocos markdown ```.'
+        '{\n' +
+        '  "unidades": [{"unidade": "401", "andar": 4, "tipologia": "NR", "metragem": 20.55, "valor": 435000, "status": "disponivel", "observacoes": ""}],\n' +
+        '  "data_entrega_chaves": "YYYY-MM-DD ou YYYY-MM ou null se não encontrada",\n' +
+        '  "meses_ate_entrega": 22,\n' +
+        '  "detalhes_chaves": "Ex: Parcela nas chaves prevista para Março/2027",\n' +
+        '  "resumo": "..."\n' +
+        '}\n' +
+        'Regras para unidades:\n' +
+        "1. 'unidade' deve ser o número ou identificador da unidade (ex: '101', '402', '1401', '12A').\n" +
+        "2. 'andar' deve ser um número inteiro (ex: se unidade 401, andar 4; se 1201, andar 12; se não souber, deduza ou deixe null).\n" +
+        "3. 'tipologia' deve ser EXATAMENTE um destes 4 valores: 'R2V', 'NR', 'HIS' ou 'HMP'.\n" +
+        "4. 'metragem' deve ser um número float em m² (ex: 20.55).\n" +
+        "5. 'valor' deve ser um número float em Reais (ex: 435000.00). Remova 'R$', pontos de milhar e converta centavos.\n" +
+        "6. 'status' deve ser 'disponivel', 'reservada' ou 'vendida'.\n" +
+        'Regras para entrega das chaves:\n' +
+        "7. Se encontrar coluna ou linha de 'Chaves', 'Nas Chaves', 'Financiamento/Chaves', 'Entrega', 'Habite-se', verifique a data de vencimento correspondente (ex: '03/2027', 'março de 2027', '30/03/2027'). Converta para YYYY-MM-01. Calcule a diferença em meses a partir de hoje e coloque em 'meses_ate_entrega'.\n" +
+        '8. Ignore textos institucionais e retorne estritamente o JSON sem blocos markdown ```.'
 
       const reply = $ai.chat({
         model: 'fast',
@@ -68,7 +76,9 @@ routerAdd(
           {
             role: 'user',
             content:
-              'Aqui está o conteúdo extraído da tabela / mapa de disponibilidade:\n\n' +
+              'Hoje é ' +
+              new Date().toISOString().slice(0, 10) +
+              '. Aqui está o conteúdo extraído da tabela / mapa de disponibilidade:\n\n' +
               rawText.slice(0, 32000),
           },
         ],
@@ -162,10 +172,29 @@ routerAdd(
           }
         }
 
+        // Tratar data_entrega_chaves e meses_ate_entrega detectados
+        let dataEntregaChavesDetectada = null
+        if (parsed.data_entrega_chaves && typeof parsed.data_entrega_chaves === 'string') {
+          const rawData = parsed.data_entrega_chaves.trim()
+          if (/^\d{4}-\d{2}-\d{2}$/.test(rawData)) {
+            dataEntregaChavesDetectada = rawData
+          } else if (/^\d{4}-\d{2}$/.test(rawData)) {
+            dataEntregaChavesDetectada = rawData + '-01'
+          }
+        }
+
+        let mesesDetectados = undefined
+        if (typeof parsed.meses_ate_entrega === 'number' && parsed.meses_ate_entrega >= 0) {
+          mesesDetectados = Math.round(parsed.meses_ate_entrega)
+        }
+
         return e.json(200, {
           sucesso: true,
           unidades: normalizadas,
           total: normalizadas.length,
+          dataEntregaChaves: dataEntregaChavesDetectada,
+          mesesAteEntrega: mesesDetectados,
+          detalhesChaves: parsed.detalhes_chaves || null,
           resumo: parsed.resumo || normalizadas.length + ' unidades extraídas com sucesso',
           truncated: truncated,
           rawTextPreview: rawText.slice(0, 500),

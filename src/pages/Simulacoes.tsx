@@ -30,6 +30,7 @@ import {
   Share2,
   Check,
   CreditCard,
+  Clock,
 } from 'lucide-react'
 import {
   formatarMensagemWhatsApp,
@@ -268,14 +269,16 @@ export default function SimulacoesPage() {
                   {/* Resumo Financeiro */}
                   <div className="rounded-xl border border-[#E3DFD6] bg-[#F7F5F1]/60 p-3 space-y-2">
                     {/* Exibe meses restantes até entrega se configurado */}
-                    {sim.meses_ate_entrega ? (
-                      <div className="flex justify-between items-center text-xs pb-1 border-b border-[#E3DFD6]/60">
-                        <span className="text-[#5E6E64]">Prazo até Entrega:</span>
-                        <span className="font-semibold text-[#0F6B4F]">
-                          {sim.meses_ate_entrega} meses restantes
+                    {sim.meses_ate_entrega || sim.config_plano_pagamento?.mesesAteEntrega ? (
+                      <div className="flex items-center gap-1.5 text-xs text-[#0F6B4F]">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span className="font-semibold">
+                          {sim.config_plano_pagamento?.dataEntregaChaves
+                            ? `Entrega: ${sim.config_plano_pagamento.dataEntregaChaves.slice(0, 7)} — ${sim.config_plano_pagamento.mesesAteEntrega ?? sim.meses_ate_entrega}m restantes`
+                            : `${sim.meses_ate_entrega ?? sim.config_plano_pagamento?.mesesAteEntrega} meses restantes`}
                         </span>
                       </div>
-                    ) : null}
+                    ) : null}{' '}
                     <div className="flex justify-between items-center text-xs">
                       <span className="text-[#5E6E64]">Patrimônio Total:</span>
                       <span className="font-semibold text-[#1F2A24] tabular-nums">
