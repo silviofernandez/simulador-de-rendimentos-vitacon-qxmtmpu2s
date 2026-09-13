@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { listarMidias, criarMidia, excluirMidia, obterUrlMidia } from '@/services/midias'
 import { MidiaRecord, CategoriaMidia } from '@/types/simulador'
+import { formatarMensagemErroUpload } from '@/lib/pocketbase/errors'
 import {
   formatarMensagemMidiaWhatsApp,
   abrirWhatsAppComTexto,
@@ -61,6 +62,7 @@ export default function MidiasPage() {
   // Upload modal states
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<string>('')
   const [titulo, setTitulo] = useState('')
   const [categoria, setCategoria] = useState<CategoriaMidia>('Mapa de disponibilidade')
   const [empreendimento, setEmpreendimento] = useState('Vitacon João Ramalho')
@@ -99,8 +101,22 @@ export default function MidiasPage() {
       return
     }
 
+    // Limite máximo de 100 MB para arquivos de book institucional e mídia
+    const LIMITE_MAX_BYTES = 100 * 1024 * 1024
+    if (arquivo.size > LIMITE_MAX_BYTES) {
+      toast.error(
+        `Arquivo muito grande (${(arquivo.size / (1024 * 1024)).toFixed(1)} MB). O limite máximo permitido é de 100 MB.`,
+      )
+      return
+    }
+
     try {
       setIsUploading(true)
+      const tamanhoMb = (arquivo.size / (1024 * 1024)).toFixed(1)
+      setUploadProgress(
+        arquivo.size > 5 * 1024 * 1024 ? `Enviando arquivo (${tamanhoMb} MB)...` : 'Enviando...',
+      )
+
       const formData = new FormData()
       formData.append('titulo', titulo.trim())
       formData.append('categoria', categoria)
@@ -116,13 +132,16 @@ export default function MidiasPage() {
       setTitulo('')
       setDescricao('')
       setArquivo(null)
+      setUploadProgress('')
       if (fileInputRef.current) fileInputRef.current.value = ''
       carregarMidias()
     } catch (err) {
-      console.error(err)
-      toast.error('Erro ao fazer upload do arquivo.')
+      console.error('Erro detalhado no upload:', err)
+      const mensagemAmigavel = formatarMensagemErroUpload(err)
+      toast.error(mensagemAmigavel)
     } finally {
       setIsUploading(false)
+      setUploadProgress('')
     }
   }
 
@@ -218,7 +237,7 @@ export default function MidiasPage() {
               <DialogHeader>
                 <DialogTitle className="text-[#1F2A24]">Adicionar Nova Mídia</DialogTitle>
                 <DialogDescription className="text-xs text-[#5E6E64]">
-                  Suba imagens (JPG, PNG, WEBP) ou documentos PDF (até 50MB).
+                  Suba imagens (JPG, PNG, WEBP) ou documentos PDF de books e plantas (até 100MB).
                 </DialogDescription>
               </DialogHeader>
 
@@ -292,11 +311,26 @@ export default function MidiasPage() {
                     id="midia-file"
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*,application/pdf"
-                    onChange={(e) => setArquivo(e.target.files?.[0] || null)}
+                    accept="image/*,application/pdf,.pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null
+                      setArquivo(file)
+                      if (file && !titulo) {
+                        // Sugere título baseado no nome do arquivo
+                        const nomeSemExt = file.name.replace(/\.[^/.]+$/, '')
+                        setTitulo(nomeSemExt)
+                      }
+                    }}
                     className="h-11 rounded-xl border-[#E3DFD6] text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-[#0F6B4F]/10 file:text-[#0F6B4F] file:font-semibold"
                     required
                   />
+                  {arquivo && (
+                    <p className="text-[11px] text-[#5E6E64]">
+                      Arquivo selecionado:{' '}
+                      <span className="font-semibold text-[#1F2A24]">{arquivo.name}</span> (
+                      {(arquivo.size / (1024 * 1024)).toFixed(2)} MB)
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -312,9 +346,9 @@ export default function MidiasPage() {
                 <Button
                   type="submit"
                   disabled={isUploading}
-                  className="rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold"
+                  className="rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold gap-1.5"
                 >
-                  {isUploading ? 'Enviando...' : 'Fazer Upload'}
+                  {isUploading ? uploadProgress || 'Enviando...' : 'Fazer Upload'}
                 </Button>
               </DialogFooter>
             </form>

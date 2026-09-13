@@ -49,6 +49,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { formatCurrency, calcularMesesAteEntrega, formatarPrazoEntregaTexto } from '@/lib/calculos'
 import { criarEmpreendimento } from '@/services/empreendimentos'
+import { formatarMensagemErroUpload } from '@/lib/pocketbase/errors'
 import { criarMidia } from '@/services/midias'
 import { salvarListaUnidadesEmpreendimento } from '@/services/unidades'
 import {
@@ -336,6 +337,9 @@ export default function NovoEmpreendimentoPage() {
             await criarMidia(formData)
           } catch (midiaErr) {
             console.warn('Erro ao salvar mídia de book:', midiaErr)
+            toast.error(
+              `Aviso: Falha ao arquivar book "${file.name}": ${formatarMensagemErroUpload(midiaErr)}`,
+            )
           }
         }
       }
