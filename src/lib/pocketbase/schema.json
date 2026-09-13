@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-09-09T12:22:44.534Z",
+  "generatedAt": "2026-09-13T21:15:24.343Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
-        "create": "",
-        "update": "id = @request.auth.id",
-        "delete": "id = @request.auth.id"
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.email = 'gabsilvio@gmail.com'",
+        "update": "@request.auth.id = id || @request.auth.email = 'gabsilvio@gmail.com'",
+        "delete": "@request.auth.email = 'gabsilvio@gmail.com'"
       },
       "fields": [
         {
@@ -37,6 +37,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["admin", "corretor", "investidor"]
         }
       ],
       "indexes": [
@@ -219,6 +232,164 @@
       "indexes": [
         "CREATE INDEX idx_simulacoes_user ON simulacoes (user)",
         "CREATE INDEX idx_simulacoes_created ON simulacoes (created DESC)"
+      ]
+    },
+    {
+      "name": "unidades",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "empreendimento",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "unidade",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "andar",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipologia",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["R2V", "NR", "HIS", "HMP"]
+        },
+        {
+          "name": "metragem",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["disponivel", "reservada", "vendida"]
+        },
+        {
+          "name": "valor_diaria",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_unidades_emp ON unidades (empreendimento)",
+        "CREATE INDEX idx_unidades_status ON unidades (status)",
+        "CREATE INDEX idx_unidades_tipologia ON unidades (tipologia)",
+        "CREATE UNIQUE INDEX idx_unidades_emp_num ON unidades (empreendimento, unidade)"
+      ]
+    },
+    {
+      "name": "midias",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "categoria",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Mapa de disponibilidade", "Planta", "Foto", "Tabela", "Outros"]
+        },
+        {
+          "name": "empreendimento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "criado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_midias_categoria ON midias (categoria)",
+        "CREATE INDEX idx_midias_created ON midias (created DESC)"
       ]
     }
   ]

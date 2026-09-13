@@ -6,6 +6,9 @@ export interface DadosParaMensagemWhatsApp {
   empreendimento?: string
   bairro?: string
   metragem?: number
+  unidade?: string
+  andar?: number
+  tipologia?: string
   valorDiaria?: number
   taxaOcupacaoPerc?: number
   dataSimulacao?: string | Date
@@ -17,6 +20,9 @@ export interface DadosParaMensagemPlanoPagamento {
   empreendimento?: string
   bairro?: string
   metragem?: number
+  unidade?: string
+  andar?: number
+  tipologia?: string
   dataSimulacao?: string | Date
   resultados: ResultadosSimulacao
 }
@@ -80,10 +86,16 @@ export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): stri
   // Título e identificação do empreendimento (sem emojis)
   linhas.push(`SIMULAÇÃO DE RENTABILIDADE — ${nomeExibicao.toUpperCase()}`)
   const detalhesLocalizacao: string[] = []
+  if (dados.unidade) {
+    let unStr = `Unidade ${dados.unidade}`
+    if (dados.andar) unStr += ` (${dados.andar}º andar)`
+    detalhesLocalizacao.push(unStr)
+  }
+  if (dados.tipologia) detalhesLocalizacao.push(`Tipologia ${dados.tipologia}`)
   if (bairro) detalhesLocalizacao.push(bairro)
   if (metragem && metragem > 0) detalhesLocalizacao.push(`${metragem} m²`)
   if (detalhesLocalizacao.length > 0) {
-    linhas.push(`Localização / Tipologia: ${detalhesLocalizacao.join(' • ')}`)
+    linhas.push(`Identificação: ${detalhesLocalizacao.join(' • ')}`)
   }
   linhas.push(`Data da simulação: ${dataFormatada}`)
 
@@ -167,6 +179,68 @@ export function formatarMensagemWhatsApp(dados: DadosParaMensagemWhatsApp): stri
  * Formata a mensagem formal e profissional do Plano de Pagamento (sem emojis)
  * para envio direto ao cliente no WhatsApp ou cópia para área de transferência.
  */
+/**
+ * Formata mensagem formal no padrão do sistema com as credenciais do novo usuário para envio via WhatsApp
+ */
+export function formatarMensagemCredenciaisWhatsApp(dados: {
+  nome: string
+  email: string
+  senha: string
+}): string {
+  const { nome, email, senha } = dados
+  const linkApp = 'https://simulador-de-rendimentos-vitacon-1d583.goskip.app'
+
+  const linhas: string[] = []
+  linhas.push(`ACESSO AO SIMULADOR DE RENTABILIDADE VITACON`)
+  linhas.push('')
+  linhas.push(`Olá, ${nome}.`)
+  linhas.push('Seu acesso ao sistema foi liberado com sucesso. Seguem os dados para login:')
+  linhas.push('')
+  linhas.push(`• Link de acesso: ${linkApp}`)
+  linhas.push(`• Usuário (e-mail): ${email}`)
+  linhas.push(`• Senha temporária: ${senha}`)
+  linhas.push('')
+  linhas.push(
+    'Recomendamos salvar este link nos seus favoritos para consultas e simulações rápidas.',
+  )
+  linhas.push('')
+  linhas.push('Exemplo enviado através de simulador Gabriel Patrimônio')
+
+  return linhas.join('\n')
+}
+
+/**
+ * Formata mensagem para compartilhamento de mídia (catálogo, mapa, planta) no WhatsApp
+ */
+export function formatarMensagemMidiaWhatsApp(dados: {
+  titulo: string
+  categoria?: string
+  empreendimento?: string
+  urlArquivo: string
+  descricao?: string
+}): string {
+  const { titulo, categoria, empreendimento, urlArquivo, descricao } = dados
+  const linhas: string[] = []
+
+  linhas.push(`MATERIAL DE APOIO VITACON — ${titulo.toUpperCase()}`)
+  if (empreendimento) {
+    linhas.push(`Empreendimento: ${empreendimento}`)
+  }
+  if (categoria) {
+    linhas.push(`Categoria: ${categoria}`)
+  }
+  if (descricao) {
+    linhas.push(`Descrição: ${descricao}`)
+  }
+  linhas.push('')
+  linhas.push(`Acesse o arquivo pelo link:`)
+  linhas.push(urlArquivo)
+  linhas.push('')
+  linhas.push('Exemplo enviado através de simulador Gabriel Patrimônio')
+
+  return linhas.join('\n')
+}
+
 export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPagamento): string {
   const { titulo, empreendimento, bairro, metragem, dataSimulacao, resultados: res } = dados
 
@@ -189,10 +263,16 @@ export function formatarMensagemPlanoPagamento(dados: DadosParaMensagemPlanoPaga
   // Cabeçalho
   linhas.push(`PLANO DE PAGAMENTO — ${nomeExibicao.toUpperCase()}`)
   const detalhesLocalizacao: string[] = []
+  if (dados.unidade) {
+    let unStr = `Unidade ${dados.unidade}`
+    if (dados.andar) unStr += ` (${dados.andar}º andar)`
+    detalhesLocalizacao.push(unStr)
+  }
+  if (dados.tipologia) detalhesLocalizacao.push(`Tipologia ${dados.tipologia}`)
   if (bairro) detalhesLocalizacao.push(bairro)
   if (metragem && metragem > 0) detalhesLocalizacao.push(`${metragem} m²`)
   if (detalhesLocalizacao.length > 0) {
-    linhas.push(`Localização / Tipologia: ${detalhesLocalizacao.join(' • ')}`)
+    linhas.push(`Identificação: ${detalhesLocalizacao.join(' • ')}`)
   }
   linhas.push(`Data da simulação: ${dataFormatada}`)
 

@@ -122,7 +122,7 @@ export default function AuthPage() {
                   value="register"
                   className="rounded-lg text-xs font-semibold data-[state=active]:bg-[#0F6B4F] data-[state=active]:text-white transition-all"
                 >
-                  Criar conta
+                  Acesso Restrito
                 </TabsTrigger>
               </TabsList>
 
@@ -210,88 +210,33 @@ export default function AuthPage() {
                 </form>
               </TabsContent>
 
-              {/* Tab: Criar Conta */}
+              {/* Tab: Acesso Restrito / Novos Usuários */}
               <TabsContent value="register" className="space-y-4 focus-visible:outline-none">
-                {registerError && (
-                  <Alert
-                    variant="destructive"
-                    className="py-2.5 bg-red-50 text-[#C62828] border-red-200 rounded-xl text-xs"
-                  >
-                    <AlertDescription>{registerError}</AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-name" className="text-xs font-semibold text-[#1F2A24]">
-                      Nome Completo
-                    </Label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-3.5 h-4 w-4 text-[#5E6E64]" />
-                      <Input
-                        id="reg-name"
-                        type="text"
-                        placeholder="Ex: João Silva"
-                        value={registerName}
-                        onChange={(e) => setRegisterName(e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-[#E3DFD6] focus-visible:ring-[#0F6B4F]"
-                        required
-                      />
-                    </div>
+                <div className="rounded-2xl border border-[#E3DFD6] bg-[#F7F5F1]/80 p-5 text-center space-y-3">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0F6B4F]/10 text-[#0F6B4F]">
+                    <Lock className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#1F2A24]">
+                      Apenas Administrador Pode Incluir Usuários
+                    </h3>
+                    <p className="mt-1 text-xs text-[#5E6E64] leading-relaxed">
+                      O cadastro de novos corretores e operadores é centralizado e realizado
+                      exclusivamente pelo administrador do sistema.
+                    </p>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-email" className="text-xs font-semibold text-[#1F2A24]">
-                      E-mail
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-[#5E6E64]" />
-                      <Input
-                        id="reg-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        value={registerEmail}
-                        onChange={(e) => setRegisterEmail(e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-[#E3DFD6] focus-visible:ring-[#0F6B4F]"
-                        required
-                      />
-                    </div>
+                  <div className="rounded-xl bg-white p-3 border border-[#E3DFD6] text-xs text-[#1F2A24] text-left space-y-1">
+                    <p className="font-semibold text-[#0F6B4F]">Como funciona o seu acesso:</p>
+                    <p className="text-[11px] text-[#5E6E64]">
+                      1. O administrador cadastra seu usuário no painel de controle.
+                      <br />
+                      2. Você recebe seu login e senha provisória diretamente pelo WhatsApp.
+                      <br />
+                      3. Basta utilizar a aba <strong>Entrar</strong> ao lado.
+                    </p>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="reg-pass" className="text-xs font-semibold text-[#1F2A24]">
-                      Senha (mínimo 8 caracteres)
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-[#5E6E64]" />
-                      <Input
-                        id="reg-pass"
-                        type="password"
-                        placeholder="••••••••"
-                        value={registerPassword}
-                        onChange={(e) => setRegisterPassword(e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-[#E3DFD6] focus-visible:ring-[#0F6B4F]"
-                        required
-                        minLength={8}
-                      />
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={registerLoading}
-                    className="w-full h-12 rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white font-medium shadow-md shadow-[#0F6B4F]/20 transition-all"
-                  >
-                    {registerLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Criando Conta...
-                      </>
-                    ) : (
-                      'Cadastrar e Acessar'
-                    )}
-                  </Button>
-                </form>
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>

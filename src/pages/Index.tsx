@@ -7,8 +7,10 @@ import {
   ParametrosFinanciamento,
   CenarioComparativo,
   ConfigPlanoPagamento,
+  UnidadeRecord,
 } from '@/types/simulador'
 import { listarEmpreendimentos } from '@/services/empreendimentos'
+import { listarUnidades } from '@/services/unidades'
 import { criarSimulacao } from '@/services/simulacoes'
 import {
   calcularSimulacaoCompleta,
@@ -51,6 +53,7 @@ import { BreakEvenCard } from '@/components/BreakEvenCard'
 import { ScenarioCompare } from '@/components/ScenarioCompare'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
 import {
   Building2,
   Calendar,
@@ -65,6 +68,7 @@ import {
   TrendingUp,
   Percent,
   Share2,
+  Tag,
 } from 'lucide-react'
 import {
   formatarMensagemWhatsApp,
@@ -124,6 +128,11 @@ export default function IndexPage() {
   // Base de empreendimentos do PocketBase
   const [empreendimentos, setEmpreendimentos] = useState<EmpreendimentoRecord[]>([])
   const [selectedEmpreendimentoId, setSelectedEmpreendimentoId] = useState<string>('')
+
+  // Unidades do empreendimento selecionado
+  const [unidadesDoEmpreendimento, setUnidadesDoEmpreendimento] = useState<UnidadeRecord[]>([])
+  const [selectedUnidadeId, setSelectedUnidadeId] = useState<string>('')
+  const [unidadeSelecionada, setUnidadeSelecionada] = useState<UnidadeRecord | null>(null)
 
   // 1. INVESTIMENTO (100% editável)
   const [nomeEmpreendimento, setNomeEmpreendimento] = useState<string>(PRESET_DOMINGOS_MORAIS.nome)
@@ -210,6 +219,9 @@ export default function IndexPage() {
         empreendimento: nomeEmpreendimento,
         bairro,
         metragem,
+        unidade: unidadeSelecionada?.unidade,
+        andar: unidadeSelecionada?.andar,
+        tipologia: unidadeSelecionada?.tipologia,
         valorDiaria,
         taxaOcupacaoPerc,
         dataSimulacao: new Date(),
@@ -255,6 +267,9 @@ export default function IndexPage() {
         empreendimento: nomeEmpreendimento,
         bairro,
         metragem,
+        unidade: unidadeSelecionada?.unidade,
+        andar: unidadeSelecionada?.andar,
+        tipologia: unidadeSelecionada?.tipologia,
         dataSimulacao: new Date(),
         resultados,
       })
@@ -300,7 +315,29 @@ export default function IndexPage() {
       const state = location.state as {
         selectedEmpreendimentoId?: string
         simulacaoCarregada?: SimulacaoRecord
+        unidadeSelecionada?: UnidadeRecord
+        nomeEmpreendimento?: string
       } | null
+
+      if (state?.unidadeSelecionada) {
+        const u = state.unidadeSelecionada
+        const empMatching = data.find((e) => e.nome === u.empreendimento)
+        if (empMatching) {
+          setSelectedEmpreendimentoId(empMatching.id)
+        }
+        setNomeEmpreendimento(u.empreendimento)
+        setMetragem(u.metragem)
+        setValorImovel(u.valor)
+        if (u.valor_diaria) setValorDiaria(u.valor_diaria)
+        setSelectedUnidadeId(u.id)
+        setUnidadeSelecionada(u)
+
+        // Busca unidades deste empreendimento
+        listarUnidades(u.empreendimento).then((listaUnidades) => {
+          setUnidadesDoEmpreendimento(listaUnidades)
+        })
+        return
+      }
 
       if (state?.simulacaoCarregada) {
         carregarSimulacaoDoRegistro(state.simulacaoCarregada, data)
@@ -315,6 +352,9 @@ export default function IndexPage() {
         const domingos = data.find((e) => e.nome.includes('Domingos de Morais'))
         if (domingos) {
           setSelectedEmpreendimentoId(domingos.id)
+          listarUnidades(domingos.nome).then((lista) => {
+            setUnidadesDoEmpreendimento(lista)
+          })
         }
       }
     }
@@ -322,15 +362,22 @@ export default function IndexPage() {
   }, [])
 
   // Aplica dados de um empreendimento selecionado do banco
-  const aplicarEmpreendimento = (emp: EmpreendimentoRecord) => {
+  const aplicarEmpreendimento = async (emp: EmpreendimentoRecord) => {
     setNomeEmpreendimento(emp.nome)
     setBairro(emp.bairro)
     setEndereco(emp.endereco)
     setValorDiaria(emp.valor_diaria)
-    // Calcula valor inicial do imóvel com base no m² e metragem atual
+    // Reseta unidade selecionada
+    setSelectedUnidadeId('')
+    setUnidadeSelecionada(null)
+
+    // Busca unidades vinculadas a este empreendimento
+    const listaUnidades = await listarUnidades(emp.nome)
+    setUnidadesDoEmpreendimento(listaUnidades)
+
+    // Se tiver unidades, podemos sugerir ou manter o cálculo por m²
     const valTotal = emp.valor_m2 * metragem
     setValorImovel(valTotal)
-    // Atualiza saldo financiado (70%)
     setFinanciamento((prev) => ({
       ...prev,
       valorFinanciado: valTotal * (1 - percentualAteChaves / 100),
@@ -342,6 +389,28 @@ export default function IndexPage() {
     const emp = empreendimentos.find((e) => e.id === empId)
     if (emp) {
       aplicarEmpreendimento(emp)
+    }
+  }
+
+  const handleSelectUnidade = (unidadeId: string) => {
+    setSelectedUnidadeId(unidadeId)
+    if (unidadeId === 'nenhuma') {
+      setUnidadeSelecionada(null)
+      return
+    }
+    const u = unidadesDoEmpreendimento.find((item) => item.id === unidadeId)
+    if (u) {
+      setUnidadeSelecionada(u)
+      setMetragem(u.metragem)
+      setValorImovel(u.valor)
+      if (u.valor_diaria) setValorDiaria(u.valor_diaria)
+      setFinanciamento((prev) => ({
+        ...prev,
+        valorFinanciado: u.valor * (1 - percentualAteChaves / 100),
+      }))
+      toast.success(
+        `Unidade ${u.unidade} (${u.tipologia}${u.andar ? ` • ${u.andar}º andar` : ''}) selecionada!`,
+      )
     }
   }
 
@@ -806,6 +875,112 @@ export default function IndexPage() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Seletor de Unidades (quando houver unidades cadastradas para o empreendimento) */}
+                {unidadesDoEmpreendimento.length > 0 && (
+                  <div className="pt-2 space-y-1.5 border-t border-[#E3DFD6]/60 mt-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-[#0F6B4F] flex items-center gap-1">
+                        <Tag className="h-3.5 w-3.5" />
+                        <span>Unidade / Tabela de Disponibilidade</span>
+                      </Label>
+                      <span className="text-[10px] text-[#5E6E64]">
+                        {unidadesDoEmpreendimento.length} unidades no mapa
+                      </span>
+                    </div>
+
+                    <Select value={selectedUnidadeId} onValueChange={handleSelectUnidade}>
+                      <SelectTrigger className="h-10 rounded-xl border-[#0F6B4F]/30 bg-[#0F6B4F]/5 text-xs font-medium focus:ring-[#0F6B4F]">
+                        <SelectValue placeholder="Escolha uma unidade (preenchimento automático)..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-72 rounded-xl border-[#E3DFD6] bg-white">
+                        <SelectItem value="nenhuma" className="text-xs text-[#5E6E64]">
+                          Personalizado (sem unidade específica)
+                        </SelectItem>
+                        {unidadesDoEmpreendimento.map((u) => {
+                          const indisponivel = u.status === 'vendida'
+                          return (
+                            <SelectItem
+                              key={u.id}
+                              value={u.id}
+                              disabled={indisponivel}
+                              className="text-xs py-2"
+                            >
+                              <div className="flex items-center justify-between w-full gap-3">
+                                <span className="font-bold text-[#1F2A24]">
+                                  Unidade {u.unidade}
+                                  {u.andar ? ` (${u.andar}º and)` : ''}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] font-bold ${
+                                      u.tipologia === 'R2V'
+                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                        : u.tipologia === 'NR'
+                                          ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                          : u.tipologia === 'HIS'
+                                            ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                            : 'bg-purple-50 text-purple-700 border-purple-300'
+                                    }`}
+                                  >
+                                    {u.tipologia}
+                                  </Badge>
+                                  <span className="text-[11px] text-[#5E6E64]">{u.metragem}m²</span>
+                                  <span className="font-bold text-[#0F6B4F]">
+                                    {formatCurrency(u.valor)}
+                                  </span>
+                                  {indisponivel && (
+                                    <span className="text-[10px] text-red-600 font-bold">
+                                      (Vendida)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Badge e Detalhes da Unidade Selecionada */}
+                    {unidadeSelecionada && (
+                      <div className="rounded-xl bg-emerald-50/60 p-2.5 border border-emerald-200 text-xs flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={`text-[10px] font-bold ${
+                              unidadeSelecionada.tipologia === 'R2V'
+                                ? 'bg-emerald-700 text-white'
+                                : unidadeSelecionada.tipologia === 'NR'
+                                  ? 'bg-blue-700 text-white'
+                                  : unidadeSelecionada.tipologia === 'HIS'
+                                    ? 'bg-amber-700 text-white'
+                                    : 'bg-purple-700 text-white'
+                            }`}
+                          >
+                            Tipologia {unidadeSelecionada.tipologia}
+                          </Badge>
+                          <span className="font-semibold text-[#1F2A24]">
+                            Unidade {unidadeSelecionada.unidade}
+                            {unidadeSelecionada.andar
+                              ? ` • ${unidadeSelecionada.andar}º andar`
+                              : ''}
+                          </span>
+                        </div>
+                        <Badge
+                          variant="secondary"
+                          className="bg-white text-emerald-800 border border-emerald-300 text-[10px]"
+                        >
+                          {unidadeSelecionada.status === 'disponivel'
+                            ? 'Disponível'
+                            : unidadeSelecionada.status === 'reservada'
+                              ? 'Reservada'
+                              : 'Vendida'}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Sub-informações */}
                 <div className="mt-1 rounded-xl bg-[#F7F5F1] p-2.5 border border-[#E3DFD6] text-xs flex items-center justify-between">

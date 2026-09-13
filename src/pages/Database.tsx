@@ -1,11 +1,42 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { EmpreendimentoRecord } from '@/types/simulador'
-import { formatCurrency, formatCurrencyDetailed, formatPercent } from '@/lib/calculos'
+import {
+  EmpreendimentoRecord,
+  UnidadeRecord,
+  TipologiaUnidade,
+  StatusUnidade,
+} from '@/types/simulador'
+import { formatCurrency, formatCurrencyDetailed } from '@/lib/calculos'
+import {
+  listarUnidades,
+  criarUnidade,
+  atualizarUnidade,
+  excluirUnidade,
+  importarUnidadesEmLote,
+} from '@/services/unidades'
+import { useAuth } from '@/contexts/AuthContext'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import {
   Table,
   TableBody,
@@ -15,7 +46,20 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Search, Building2, MapPin, Calculator, DollarSign, Layers } from 'lucide-react'
+import {
+  Search,
+  Building2,
+  MapPin,
+  Calculator,
+  DollarSign,
+  Layers,
+  Home,
+  Plus,
+  FileSpreadsheet,
+  CheckCircle2,
+  Trash2,
+} from 'lucide-react'
+import { toast } from 'sonner'
 
 interface DatabaseProps {
   empreendimentos: EmpreendimentoRecord[]
@@ -23,8 +67,129 @@ interface DatabaseProps {
 }
 
 export default function DatabasePage({ empreendimentos, isLoading }: DatabaseProps) {
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
+
+  // Estados de Unidades
+  const [unidades, setUnidades] = useState<UnidadeRecord[]>([])
+  const [loadingUnidades, setLoadingUnidades] = useState(true)
+  const [unidadeFiltroEmp, setUnidadeFiltroEmp] = useState<string>('Vitacon João Ramalho')
+  const [searchUnidades, setSearchUnidades] = useState('')
+
+  // Modal nova unidade
+  const [novaUnidadeModal, setNovaUnidadeModal] = useState(false)
+  const [formEmp, setFormEmp] = useState('Vitacon João Ramalho')
+  const [formNumero, setFormNumero] = useState('')
+  const [formAndar, setFormAndar] = useState<number | undefined>(undefined)
+  const [formTipologia, setFormTipologia] = useState<TipologiaUnidade>('NR')
+  const [formMetragem, setFormMetragem] = useState<number>(20.55)
+  const [formValor, setFormValor] = useState<number>(435000)
+  const [formStatus, setFormStatus] = useState<StatusUnidade>('disponivel')
+  const [formValorDiaria, setFormValorDiaria] = useState<number>(380)
+  const [formObs, setFormObs] = useState('')
+  const [salvandoUnidade, setSalvandoUnidade] = useState(false)
+
+  // Modal importação em lote
+  const [importModal, setImportModal] = useState(false)
+  const [importEmp, setImportEmp] = useState('Vitacon João Ramalho')
+  const [importTexto, setImportTexto] = useState('')
+  const [importando, setImportando] = useState(false)
+
+  const carregarUnidades = async () => {
+    try {
+      setLoadingUnidades(true)
+      const data = await listarUnidades()
+      setUnidades(data)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao carregar unidades.')
+    } finally {
+      setLoadingUnidades(false)
+    }
+  }
+
+  useEffect(() => {
+    carregarUnidades()
+  }, [])
+
+  const handleSalvarNovaUnidade = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formNumero.trim()) {
+      toast.error('Informe o número da unidade.')
+      return
+    }
+
+    try {
+      setSalvandoUnidade(true)
+      await criarUnidade({
+        empreendimento: formEmp,
+        unidade: formNumero.trim(),
+        andar: formAndar,
+        tipologia: formTipologia,
+        metragem: formMetragem,
+        valor: formValor,
+        status: formStatus,
+        valor_diaria: formValorDiaria,
+        observacoes: formObs.trim(),
+      })
+      toast.success(`Unidade ${formNumero} cadastrada!`)
+      setNovaUnidadeModal(false)
+      setFormNumero('')
+      carregarUnidades()
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao salvar unidade.')
+    } finally {
+      setSalvandoUnidade(false)
+    }
+  }
+
+  const handleImportarLote = async () => {
+    if (!importTexto.trim()) {
+      toast.error('Cole o texto com as linhas da tabela.')
+      return
+    }
+    try {
+      setImportando(true)
+      const res = await importarUnidadesEmLote(importEmp, importTexto)
+      if (res.sucesso > 0) {
+        toast.success(`${res.sucesso} unidades importadas/atualizadas com sucesso!`)
+      }
+      if (res.falhas > 0) {
+        toast.warning(`${res.falhas} linhas não puderam ser importadas.`)
+      }
+      setImportModal(false)
+      setImportTexto('')
+      carregarUnidades()
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao processar importação em lote.')
+    } finally {
+      setImportando(false)
+    }
+  }
+
+  const handleExcluirUnidade = async (id: string, num: string) => {
+    if (!confirm(`Deseja excluir a unidade ${num}?`)) return
+    try {
+      await excluirUnidade(id)
+      setUnidades((prev) => prev.filter((u) => u.id !== id))
+      toast.success(`Unidade ${num} removida.`)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao excluir unidade.')
+    }
+  }
+
+  const handleSimularUnidade = (u: UnidadeRecord) => {
+    navigate('/', {
+      state: {
+        unidadeSelecionada: u,
+        nomeEmpreendimento: u.empreendimento,
+      },
+    })
+  }
 
   // Filtragem de empreendimentos
   const empreendimentosFiltrados = useMemo(() => {
@@ -81,6 +246,13 @@ export default function DatabasePage({ empreendimentos, isLoading }: DatabasePro
       <Tabs defaultValue="empreendimentos" className="w-full">
         <TabsList className="bg-white border border-[#E3DFD6] p-1 rounded-xl">
           <TabsTrigger
+            value="unidades"
+            className="rounded-lg text-xs font-semibold data-[state=active]:bg-[#0F6B4F] data-[state=active]:text-white transition-all gap-2"
+          >
+            <Home className="h-4 w-4" />
+            Unidades Vitacon ({unidades.length})
+          </TabsTrigger>
+          <TabsTrigger
             value="empreendimentos"
             className="rounded-lg text-xs font-semibold data-[state=active]:bg-[#0F6B4F] data-[state=active]:text-white transition-all gap-2"
           >
@@ -102,6 +274,497 @@ export default function DatabasePage({ empreendimentos, isLoading }: DatabasePro
             Sobre a Vitacon
           </TabsTrigger>
         </TabsList>
+
+        {/* Tab: Unidades (Nova Gestão por Unidade, Andar e Tipologia) */}
+        <TabsContent value="unidades" className="mt-4 space-y-4">
+          <Card className="border-[#E3DFD6] bg-white rounded-2xl shadow-sm">
+            <CardHeader className="pb-3 border-b border-[#E3DFD6]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base font-bold text-[#1F2A24] flex items-center gap-2">
+                    <Home className="h-5 w-5 text-[#0F6B4F]" />
+                    <span>Disponibilidade e Mapa de Unidades</span>
+                  </CardTitle>
+                  <CardDescription className="text-xs text-[#5E6E64]">
+                    Controle por unidade, andar e tipologia (R2V, NR, HIS, HMP) com simulação direta
+                  </CardDescription>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Seletor Empreendimento */}
+                  <Select value={unidadeFiltroEmp} onValueChange={setUnidadeFiltroEmp}>
+                    <SelectTrigger className="h-9 w-52 rounded-xl border-[#E3DFD6] text-xs bg-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="Todos" className="text-xs">
+                        Todos os Empreendimentos
+                      </SelectItem>
+                      <SelectItem value="Vitacon João Ramalho" className="text-xs font-semibold">
+                        Vitacon João Ramalho
+                      </SelectItem>
+                      {empreendimentos
+                        .filter((e) => e.nome !== 'Vitacon João Ramalho')
+                        .map((e) => (
+                          <SelectItem key={e.id} value={e.nome} className="text-xs">
+                            {e.nome}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Busca */}
+                  <div className="relative w-40 sm:w-48">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[#5E6E64]" />
+                    <Input
+                      placeholder="Buscar unidade..."
+                      value={searchUnidades}
+                      onChange={(e) => setSearchUnidades(e.target.value)}
+                      className="pl-8 h-9 rounded-xl border-[#E3DFD6] text-xs focus-visible:ring-[#0F6B4F]"
+                    />
+                  </div>
+
+                  {/* Botão Importar em Lote */}
+                  {user && (
+                    <Dialog open={importModal} onOpenChange={setImportModal}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 rounded-xl border-[#E3DFD6] text-xs font-semibold gap-1 text-[#5E6E64] hover:text-[#1F2A24]"
+                        >
+                          <FileSpreadsheet className="h-3.5 w-3.5" />
+                          <span>Importar Lote</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="rounded-2xl border-[#E3DFD6] bg-white sm:max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle className="text-[#1F2A24]">
+                            Importar Unidades em Lote
+                          </DialogTitle>
+                          <DialogDescription className="text-xs text-[#5E6E64]">
+                            Cole as linhas do mapa de disponibilidade (copiado do Excel ou PDF)
+                            separadas por TAB, vírgula ou ponto-e-vírgula.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-3 py-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-[#1F2A24]">
+                              Empreendimento
+                            </Label>
+                            <Input
+                              value={importEmp}
+                              onChange={(e) => setImportEmp(e.target.value)}
+                              className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-[#1F2A24]">
+                              Formato esperado por linha:
+                            </Label>
+                            <div className="rounded-lg bg-[#F7F5F1] p-2 text-[11px] font-mono text-[#5E6E64]">
+                              Unidade [TAB] Andar [TAB] Tipologia [TAB] Metragem [TAB] Valor [TAB]
+                              Status
+                              <br />
+                              Exemplo: 401 4 NR 20.55 435000 disponivel
+                            </div>
+                            <Textarea
+                              placeholder="Cole aqui as linhas copiadas..."
+                              value={importTexto}
+                              onChange={(e) => setImportTexto(e.target.value)}
+                              rows={8}
+                              className="rounded-xl border-[#E3DFD6] text-xs font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setImportModal(false)}
+                            className="rounded-xl border-[#E3DFD6] text-xs"
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            onClick={handleImportarLote}
+                            disabled={importando}
+                            className="rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold"
+                          >
+                            {importando ? 'Importando...' : 'Processar e Salvar'}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+
+                  {/* Botão Nova Unidade */}
+                  {user && (
+                    <Dialog open={novaUnidadeModal} onOpenChange={setNovaUnidadeModal}>
+                      <DialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          className="h-9 rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold gap-1"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Nova Unidade</span>
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="rounded-2xl border-[#E3DFD6] bg-white sm:max-w-md">
+                        <form onSubmit={handleSalvarNovaUnidade}>
+                          <DialogHeader>
+                            <DialogTitle className="text-[#1F2A24]">Cadastrar Unidade</DialogTitle>
+                            <DialogDescription className="text-xs text-[#5E6E64]">
+                              Adicione uma unidade ao mapa de disponibilidade
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          <div className="space-y-3 py-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Empreendimento
+                                </Label>
+                                <Input
+                                  value={formEmp}
+                                  onChange={(e) => setFormEmp(e.target.value)}
+                                  className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Unidade / Número *
+                                </Label>
+                                <Input
+                                  placeholder="Ex: 401"
+                                  value={formNumero}
+                                  onChange={(e) => setFormNumero(e.target.value)}
+                                  className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Andar
+                                </Label>
+                                <Input
+                                  type="number"
+                                  placeholder="Ex: 4"
+                                  value={formAndar ?? ''}
+                                  onChange={(e) =>
+                                    setFormAndar(
+                                      e.target.value ? parseInt(e.target.value, 10) : undefined,
+                                    )
+                                  }
+                                  className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Tipologia *
+                                </Label>
+                                <Select
+                                  value={formTipologia}
+                                  onValueChange={(v) => setFormTipologia(v as TipologiaUnidade)}
+                                >
+                                  <SelectTrigger className="h-9 rounded-xl border-[#E3DFD6] text-xs bg-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white">
+                                    <SelectItem
+                                      value="NR"
+                                      className="text-xs font-bold text-blue-700"
+                                    >
+                                      NR (Não Residencial)
+                                    </SelectItem>
+                                    <SelectItem
+                                      value="R2V"
+                                      className="text-xs font-bold text-emerald-700"
+                                    >
+                                      R2V (Residencial)
+                                    </SelectItem>
+                                    <SelectItem
+                                      value="HIS"
+                                      className="text-xs font-bold text-amber-700"
+                                    >
+                                      HIS (Interesse Social)
+                                    </SelectItem>
+                                    <SelectItem
+                                      value="HMP"
+                                      className="text-xs font-bold text-purple-700"
+                                    >
+                                      HMP (Médio Porte)
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Status
+                                </Label>
+                                <Select
+                                  value={formStatus}
+                                  onValueChange={(v) => setFormStatus(v as StatusUnidade)}
+                                >
+                                  <SelectTrigger className="h-9 rounded-xl border-[#E3DFD6] text-xs bg-white">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-white">
+                                    <SelectItem value="disponivel" className="text-xs">
+                                      Disponível
+                                    </SelectItem>
+                                    <SelectItem value="reservada" className="text-xs">
+                                      Reservada
+                                    </SelectItem>
+                                    <SelectItem value="vendida" className="text-xs">
+                                      Vendida
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Metragem (m²) *
+                                </Label>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={formMetragem}
+                                  onChange={(e) => setFormMetragem(parseFloat(e.target.value) || 0)}
+                                  className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs font-semibold text-[#1F2A24]">
+                                  Valor Imóvel (R$) *
+                                </Label>
+                                <Input
+                                  type="number"
+                                  value={formValor}
+                                  onChange={(e) => setFormValor(parseFloat(e.target.value) || 0)}
+                                  className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs font-semibold text-[#1F2A24]">
+                                Observações
+                              </Label>
+                              <Input
+                                placeholder="Ex: Vista João Ramalho, sacada ampla"
+                                value={formObs}
+                                onChange={(e) => setFormObs(e.target.value)}
+                                className="h-9 rounded-xl border-[#E3DFD6] text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <DialogFooter>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setNovaUnidadeModal(false)}
+                              className="rounded-xl border-[#E3DFD6] text-xs"
+                            >
+                              Cancelar
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={salvandoUnidade}
+                              className="rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold"
+                            >
+                              {salvandoUnidade ? 'Salvando...' : 'Salvar Unidade'}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-[#F7F5F1]/80">
+                    <TableRow>
+                      <TableHead className="text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Unidade / Andar
+                      </TableHead>
+                      <TableHead className="text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Empreendimento
+                      </TableHead>
+                      <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Tipologia
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Metragem
+                      </TableHead>
+                      <TableHead className="text-right text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Valor Total
+                      </TableHead>
+                      <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Status
+                      </TableHead>
+                      <TableHead className="text-center text-xs font-semibold uppercase tracking-wider text-[#1F2A24]">
+                        Ações
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingUnidades ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-xs text-[#5E6E64]">
+                          Carregando unidades...
+                        </TableCell>
+                      </TableRow>
+                    ) : unidades.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-xs text-[#5E6E64]">
+                          Nenhuma unidade cadastrada.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      unidades
+                        .filter((u) => {
+                          if (
+                            unidadeFiltroEmp !== 'Todos' &&
+                            u.empreendimento !== unidadeFiltroEmp
+                          ) {
+                            return false
+                          }
+                          if (searchUnidades.trim()) {
+                            const q = searchUnidades.toLowerCase()
+                            return (
+                              u.unidade.toLowerCase().includes(q) ||
+                              u.tipologia.toLowerCase().includes(q) ||
+                              u.empreendimento.toLowerCase().includes(q)
+                            )
+                          }
+                          return true
+                        })
+                        .map((u) => {
+                          const indisponivel = u.status === 'vendida'
+                          return (
+                            <TableRow
+                              key={u.id}
+                              className={`hover:bg-[#F7F5F1]/60 transition-colors text-xs ${
+                                indisponivel ? 'opacity-60 bg-neutral-50/50' : ''
+                              }`}
+                            >
+                              <TableCell className="font-bold text-[#1F2A24]">
+                                <div className="flex items-center gap-1.5">
+                                  <span>Unidade {u.unidade}</span>
+                                  {u.andar && (
+                                    <span className="text-[10px] text-[#5E6E64] font-normal">
+                                      ({u.andar}º andar)
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+
+                              <TableCell className="text-[#5E6E64]">{u.empreendimento}</TableCell>
+
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] font-bold ${
+                                    u.tipologia === 'R2V'
+                                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                                      : u.tipologia === 'NR'
+                                        ? 'bg-blue-50 text-blue-700 border-blue-300'
+                                        : u.tipologia === 'HIS'
+                                          ? 'bg-amber-50 text-amber-700 border-amber-300'
+                                          : 'bg-purple-50 text-purple-700 border-purple-300'
+                                  }`}
+                                >
+                                  {u.tipologia}
+                                </Badge>
+                              </TableCell>
+
+                              <TableCell className="text-right font-medium text-[#1F2A24] tabular-nums">
+                                {u.metragem} m²
+                              </TableCell>
+
+                              <TableCell className="text-right font-bold text-[#0F6B4F] tabular-nums">
+                                {formatCurrency(u.valor)}
+                              </TableCell>
+
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-[10px] font-semibold ${
+                                    u.status === 'disponivel'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : u.status === 'reservada'
+                                        ? 'bg-amber-100 text-amber-800'
+                                        : 'bg-red-100 text-red-800'
+                                  }`}
+                                >
+                                  {u.status === 'disponivel'
+                                    ? 'Disponível'
+                                    : u.status === 'reservada'
+                                      ? 'Reservada'
+                                      : 'Vendida'}
+                                </Badge>
+                              </TableCell>
+
+                              <TableCell className="text-center">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleSimularUnidade(u)}
+                                    disabled={indisponivel}
+                                    className="h-7 text-xs font-semibold text-[#0F6B4F] hover:bg-[#0F6B4F]/10 gap-1 disabled:opacity-40"
+                                    title={
+                                      indisponivel
+                                        ? 'Unidade vendida'
+                                        : 'Carregar no Simulador de Rentabilidade'
+                                    }
+                                  >
+                                    <Calculator className="h-3.5 w-3.5" />
+                                    <span>Simular</span>
+                                  </Button>
+
+                                  {user && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleExcluirUnidade(u.id, u.unidade)}
+                                      className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                      title="Excluir unidade"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Tab 1: Empreendimentos */}
         <TabsContent value="empreendimentos" className="mt-4 space-y-4">

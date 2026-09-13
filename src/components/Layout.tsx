@@ -1,11 +1,23 @@
 import React, { useState } from 'react'
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { Calculator, BookmarkCheck, Database, LogOut, Menu, X, User } from 'lucide-react'
+import {
+  Calculator,
+  BookmarkCheck,
+  Database,
+  LogOut,
+  Menu,
+  X,
+  User,
+  FolderOpen,
+  Users,
+  ShieldCheck,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 export default function Layout() {
-  const { user, logout, isAuthenticated } = useAuth()
+  const { user, logout, isAuthenticated, isAdmin } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -17,9 +29,18 @@ export default function Layout() {
 
   const navItems = [
     { label: 'Simulador', path: '/', icon: Calculator },
+    { label: 'Mídias', path: '/midias', icon: FolderOpen },
     { label: 'Minhas Simulações', path: '/simulacoes', icon: BookmarkCheck },
     { label: 'Base de Dados', path: '/database', icon: Database },
   ]
+
+  if (isAdmin) {
+    navItems.push({
+      label: 'Usuários (Admin)',
+      path: '/admin/usuarios',
+      icon: Users,
+    })
+  }
 
   const isAuthPage = location.pathname === '/auth'
 
@@ -81,6 +102,11 @@ export default function Layout() {
                     <span className="text-xs font-medium text-[#1F2A24] max-w-[120px] truncate">
                       {user?.name || user?.email || 'Investidor'}
                     </span>
+                    {isAdmin && (
+                      <span className="text-[9px] font-bold text-[#0F6B4F] uppercase tracking-wider">
+                        Admin
+                      </span>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
@@ -202,7 +228,7 @@ export default function Layout() {
       {/* Mobile Bottom Navigation Bar (Fixed) */}
       {!isAuthPage && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E3DFD6] bg-white/95 backdrop-blur-md md:hidden">
-          <div className="grid grid-cols-3 h-16">
+          <div className={`grid h-16 ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path

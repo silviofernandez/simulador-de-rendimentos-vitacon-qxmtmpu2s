@@ -191,3 +191,52 @@ export interface SimulacaoRecord {
   created?: string
   updated?: string
 }
+
+export type TipologiaUnidade = 'R2V' | 'NR' | 'HIS' | 'HMP'
+export type StatusUnidade = 'disponivel' | 'reservada' | 'vendida'
+
+export interface UnidadeRecord {
+  id: string
+  collectionId?: string
+  collectionName?: string
+  empreendimento: string
+  unidade: string
+  andar?: number
+  tipologia: TipologiaUnidade
+  metragem: number
+  valor: number
+  status?: StatusUnidade
+  valor_diaria?: number
+  observacoes?: string
+  created?: string
+  updated?: string
+}
+
+export type CategoriaMidia = 'Mapa de disponibilidade' | 'Planta' | 'Foto' | 'Tabela' | 'Outros'
+
+export interface MidiaRecord {
+  id: string
+  collectionId?: string
+  collectionName?: string
+  titulo: string
+  categoria?: CategoriaMidia
+  empreendimento?: string
+  arquivo: string
+  descricao?: string
+  criado_por?: string
+  created?: string
+  updated?: string
+}
+
+export interface UserRecord {
+  id: string
+  collectionId?: string
+  collectionName?: string
+  name: string
+  email: string
+  role?: 'admin' | 'corretor' | 'investidor'
+  is_active?: boolean
+  avatar?: string
+  created?: string
+  updated?: string
+}

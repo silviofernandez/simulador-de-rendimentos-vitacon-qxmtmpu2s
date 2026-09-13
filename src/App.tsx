@@ -11,6 +11,8 @@ import Layout from '@/components/Layout'
 import IndexPage from '@/pages/Index'
 import SimulacoesPage from '@/pages/Simulacoes'
 import DatabasePage from '@/pages/Database'
+import MidiasPage from '@/pages/Midias'
+import AdminUsuariosPage from '@/pages/AdminUsuarios'
 import AuthPage from '@/pages/Auth'
 import NotFound from '@/pages/NotFound'
 
@@ -46,10 +48,11 @@ export default function App() {
             {/* Simulador e simulações: públicos (link compartilhável, sem login) */}
             <Route element={<Layout />}>
               <Route path="/" element={<IndexPage />} />
+              <Route path="/midias" element={<MidiasPage />} />
               <Route path="/simulacoes" element={<SimulacoesPage />} />
             </Route>
 
-            {/* Base de Dados: apenas para contas autenticadas (equipe) */}
+            {/* Base de Dados e Área Admin: protegidas */}
             <Route
               element={
                 <ProtectedRoute>
@@ -64,6 +67,14 @@ export default function App() {
                     empreendimentos={empreendimentos}
                     isLoading={isLoadingEmpreendimentos}
                   />
+                }
+              />
+              <Route
+                path="/admin/usuarios"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminUsuariosPage />
+                  </ProtectedRoute>
                 }
               />
             </Route>

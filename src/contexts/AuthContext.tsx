@@ -6,6 +6,7 @@ interface AuthContextType {
   user: AuthRecord | null
   token: string
   isAuthenticated: boolean
+  isAdmin: boolean
   isLoading: boolean
   login: (email: string, pass: string) => Promise<void>
   register: (name: string, email: string, pass: string) => Promise<void>
@@ -35,6 +36,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const isAdmin = Boolean(
+    user && (user.email === 'gabsilvio@gmail.com' || (user as { role?: string }).role === 'admin'),
+  )
+
   const login = async (email: string, pass: string) => {
     await pb.collection('users').authWithPassword(email, pass)
   }
@@ -59,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         token,
         isAuthenticated: !!token && !!user,
+        isAdmin,
         isLoading,
         login,
         register,
