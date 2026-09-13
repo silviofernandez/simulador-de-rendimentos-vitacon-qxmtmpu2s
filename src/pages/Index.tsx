@@ -123,6 +123,37 @@ const PRESET_DOMINGOS_MORAIS = {
   } as ConfigPlanoPagamento,
 }
 
+// Configuração do fluxo oficial da tabela R2V Vitacon João Ramalho
+// ATO 10% (10/09/2026) + SINAIS 5% em 3x (10/10/2026) + MENSAIS 5% em 35x (10/01/2027) + ANUAIS 15% em 3x (10/09/2027) + ÚNICA 5% (10/12/2029) = 40% até as chaves
+// FINANCIAMENTO 60% (30/01/2030) + PERIODICIDADE ~0.1% (28/02/2030)
+const CONFIG_PLANO_R2V_JOAO_RAMALHO: ConfigPlanoPagamento = {
+  mesesAteEntrega: 39,
+  dataEntregaChaves: '2029-12-10',
+  prazoTotalObraMeses: 40,
+  qtdMensais: 35,
+  qtdSinais: 3,
+  qtdBaloes: 3,
+  percAto: 10,
+  percSinais: 5,
+  percMensais: 5,
+  percBaloesTotal: 15,
+  percUnica: 5,
+  baloes: [
+    { id: 'balao_1', mesOffset: 12, percentual: 5.0 },
+    { id: 'balao_2', mesOffset: 24, percentual: 5.0 },
+    { id: 'balao_3', mesOffset: 36, percentual: 5.0 },
+  ],
+  datasEspecificas: {
+    dataAto: '10/09/2026',
+    dataSinal: '10/10/2026',
+    dataMensal: '10/01/2027',
+    dataAnual: '10/09/2027',
+    dataUnica: '10/12/2029',
+    dataFinanciamento: '30/01/2030',
+    dataPeriodicidade: '28/02/2030',
+  },
+}
+
 export default function IndexPage() {
   const { user } = useAuth()
   const location = useLocation()
@@ -327,6 +358,9 @@ export default function IndexPage() {
         const empMatching = data.find((e) => e.nome === u.empreendimento)
         if (empMatching) {
           setSelectedEmpreendimentoId(empMatching.id)
+          if (empMatching.data_entrega_chaves) {
+            setDataEntregaChavesEmpreendimento(empMatching.data_entrega_chaves)
+          }
         }
         setNomeEmpreendimento(u.empreendimento)
         setMetragem(u.metragem)
@@ -334,6 +368,25 @@ export default function IndexPage() {
         if (u.valor_diaria) setValorDiaria(u.valor_diaria)
         setSelectedUnidadeId(u.id)
         setUnidadeSelecionada(u)
+
+        // Se a unidade for R2V de João Ramalho, aplica a tabela com fluxo real oficial
+        if (
+          u.tipologia === 'R2V' &&
+          (u.empreendimento.includes('João Ramalho') || u.empreendimento.includes('Joao Ramalho'))
+        ) {
+          setPercentualAteChaves(40)
+          const dataChaves = empMatching?.data_entrega_chaves || '2029-12-10'
+          const m = calcularMesesAteEntrega(dataChaves)
+          setConfigPlano({
+            ...CONFIG_PLANO_R2V_JOAO_RAMALHO,
+            mesesAteEntrega: m,
+            dataEntregaChaves: dataChaves,
+          })
+          setFinanciamento((prev) => ({
+            ...prev,
+            valorFinanciado: u.valor * 0.6,
+          }))
+        }
 
         // Busca unidades deste empreendimento
         listarUnidades(u.empreendimento).then((listaUnidades) => {
@@ -392,13 +445,26 @@ export default function IndexPage() {
       mesesDinamicos = calcularMesesAteEntrega(emp.data_entrega_chaves)
     }
 
-    // Se a entrega for no passado ou 0 meses, trata graciosamente (ex: 0)
-    setConfigPlano((prev) => ({
-      ...prev,
-      mesesAteEntrega: mesesDinamicos,
-      dataEntregaChaves: emp.data_entrega_chaves,
-      qtdMensais: Math.max(1, mesesDinamicos),
-    }))
+    const isJoaoRamalho = emp.nome.includes('João Ramalho') || emp.nome.includes('Joao Ramalho')
+
+    if (isJoaoRamalho) {
+      // Configuração padrão da tabela de João Ramalho (entrega 10/12/2029)
+      setConfigPlano({
+        ...CONFIG_PLANO_R2V_JOAO_RAMALHO,
+        mesesAteEntrega: mesesDinamicos,
+        dataEntregaChaves: emp.data_entrega_chaves || '2029-12-10',
+      })
+      setPercentualAteChaves(40)
+    } else {
+      // Se a entrega for no passado ou 0 meses, trata graciosamente (ex: 0)
+      setConfigPlano((prev) => ({
+        ...prev,
+        mesesAteEntrega: mesesDinamicos,
+        dataEntregaChaves: emp.data_entrega_chaves,
+        qtdMensais: Math.max(1, mesesDinamicos),
+        datasEspecificas: undefined,
+      }))
+    }
 
     // Busca unidades vinculadas a este empreendimento
     const listaUnidades = await listarUnidades(emp.nome)
@@ -433,13 +499,39 @@ export default function IndexPage() {
       setMetragem(u.metragem)
       setValorImovel(u.valor)
       if (u.valor_diaria) setValorDiaria(u.valor_diaria)
-      setFinanciamento((prev) => ({
-        ...prev,
-        valorFinanciado: u.valor * (1 - percentualAteChaves / 100),
-      }))
-      toast.success(
-        `Unidade ${u.unidade} (${u.tipologia}${u.andar ? ` • ${u.andar}º andar` : ''}) selecionada!`,
-      )
+
+      const isJoaoRamalhoR2V =
+        u.tipologia === 'R2V' &&
+        (u.empreendimento.includes('João Ramalho') || u.empreendimento.includes('Joao Ramalho'))
+
+      if (isJoaoRamalhoR2V) {
+        // Aplica o fluxo real oficial da tabela R2V João Ramalho
+        // 40% até chaves (10% Ato + 5% Sinais 3x + 5% Mensais 35x + 15% Anuais 3x + 5% Única)
+        // 60% Financiamento
+        const dataChaves = dataEntregaChavesEmpreendimento || '2029-12-10'
+        const m = calcularMesesAteEntrega(dataChaves)
+        setPercentualAteChaves(40)
+        setConfigPlano({
+          ...CONFIG_PLANO_R2V_JOAO_RAMALHO,
+          mesesAteEntrega: m,
+          dataEntregaChaves: dataChaves,
+        })
+        setFinanciamento((prev) => ({
+          ...prev,
+          valorFinanciado: u.valor * 0.6,
+        }))
+        toast.success(
+          `Unidade R2V ${u.unidade} selecionada! Fluxo oficial aplicado (Entrega: dez/2029).`,
+        )
+      } else {
+        setFinanciamento((prev) => ({
+          ...prev,
+          valorFinanciado: u.valor * (1 - percentualAteChaves / 100),
+        }))
+        toast.success(
+          `Unidade ${u.unidade} (${u.tipologia}${u.andar ? ` • ${u.andar}º andar` : ''}) selecionada!`,
+        )
+      }
     }
   }
 

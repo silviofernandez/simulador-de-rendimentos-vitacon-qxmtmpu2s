@@ -477,20 +477,31 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
   // 8. PLANO DE PAGAMENTO EM OBRAS E FINANCIAMENTO
   // O mês atual de referência para vencimentos futuros
   const dataBase = new Date(dataInicioObra)
+  const datasEsp = configPlano?.datasEspecificas
 
-  // Datas baseadas nos meses restantes até a entrega
-  const dataAto = dataBase
-  const dataSinal = somarMeses(dataBase, 1)
-  // Mensais começam após os sinais se houver, ou no mês subsequente
+  // Datas baseadas nos meses restantes até a entrega ou datas específicas da tabela
+  const inicioAto = datasEsp?.dataAto || formatarMesAno(dataBase)
+  const inicioSinal = datasEsp?.dataSinal || formatarMesAno(somarMeses(dataBase, 1))
   const offsetMensais = qtdSinais > 0 ? 1 : 1
-  const dataMensais = somarMeses(dataBase, offsetMensais)
+  const inicioMensais = datasEsp?.dataMensal || formatarMesAno(somarMeses(dataBase, offsetMensais))
 
-  // Única: na entrega das chaves ou 1 mês antes
-  const dataUnica = somarMeses(dataBase, Math.max(1, mesesAteEntrega - 1))
-  // Financiamento: no mês da entrega das chaves
-  const dataFinanciamento = somarMeses(dataBase, mesesAteEntrega)
-  // Periodicidade: mês subsequente à entrega
-  const dataPeriodicidade = somarMeses(dataBase, mesesAteEntrega + 1)
+  // Balões Anuais
+  const primeiroMesBalao = baloesConfig[0]?.mesOffset ?? 12
+  const inicioAnuais = datasEsp?.dataAnual || formatarMesAno(somarMeses(dataBase, primeiroMesBalao))
+
+  // Única: na entrega das chaves ou data específica
+  const dataUnicaCalculada = somarMeses(dataBase, Math.max(1, mesesAteEntrega - 1))
+  const inicioUnica = datasEsp?.dataUnica || formatarMesAno(dataUnicaCalculada)
+
+  // Financiamento: no mês da entrega das chaves ou data específica
+  const dataFinanciamentoCalculada = somarMeses(dataBase, mesesAteEntrega)
+  const inicioFinanciamento =
+    datasEsp?.dataFinanciamento || formatarMesAno(dataFinanciamentoCalculada)
+
+  // Periodicidade: mês subsequente à entrega ou data específica
+  const dataPeriodicidadeCalculada = somarMeses(dataBase, mesesAteEntrega + 1)
+  const inicioPeriodicidade =
+    datasEsp?.dataPeriodicidade || formatarMesAno(dataPeriodicidadeCalculada)
 
   // Percentual restante a financiar
   const percFinancDecimal = Math.max(0, 1 - percentualAteChavesPerc / 100)
@@ -506,7 +517,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     planoPagamento.push({
       id: 'ato',
       serie: 'ATO',
-      inicio: formatarMesAno(dataAto),
+      inicio: inicioAto,
       mesesOffset: 0,
       quantidade: 1,
       valorParcela: totalAto,
@@ -524,7 +535,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     planoPagamento.push({
       id: 'sinais',
       serie: qtdSinais > 1 ? 'SINAIS' : 'SINAL',
-      inicio: formatarMesAno(dataSinal),
+      inicio: inicioSinal,
       mesesOffset: 1,
       quantidade: qtdSinais,
       valorParcela: valorParcelaSinal,
@@ -536,9 +547,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
   }
 
   // 3. MENSAIS
-  // O saldo de mensais é distribuído pelas parcelas mensais restantes
-  // Exemplo do usuário: Se o saldo a pagar é dividido por menos vezes (ex: 22 parcelas em vez de 24),
-  // cada parcela aumenta pois o saldo é dividido por menos meses.
+  // O saldo de mensais é distribuído pelas parcelas mensais restantes (ou quantidade da tabela, ex: 35x)
   if (qtdMensais > 0 && percMensaisFinal > 0) {
     const totalMensais = (valorImovelSemDecoracao * percMensaisFinal) / 100
     const valorParcelaMensal = configPlano?.valorParcelaMensalManual ?? totalMensais / qtdMensais
@@ -554,7 +563,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     planoPagamento.push({
       id: 'mensais',
       serie: 'MENSAIS',
-      inicio: formatarMesAno(dataMensais),
+      inicio: inicioMensais,
       mesesOffset: offsetMensais,
       quantidade: qtdMensais,
       valorParcela: valorParcelaMensal,
@@ -576,7 +585,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
       planoPagamento.push({
         id: b.id,
         serie: `ANUAL (${b.mesOffset}º MÊS)`,
-        inicio: formatarMesAno(dataBalao),
+        inicio: datasEsp?.dataAnual || formatarMesAno(dataBalao),
         mesesOffset: b.mesOffset,
         quantidade: 1,
         valorParcela: totalBalao,
@@ -587,16 +596,13 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
       })
     } else {
       // Se múltiplos balões, agrupa como ANUAIS (ou linhas de balões individuais)
-      // Para manter fidelidade à tabela onde tem ANUAIS com Qtd Nx, somamos:
       const totalBaloes = (valorImovelSemDecoracao * percBaloesFinal) / 100
       const valorParcelaBalao = totalBaloes / qtdBaloes
-      const primeiroMesBalao = baloesConfig[0]?.mesOffset ?? 12
-      const dataPrimeiroBalao = somarMeses(dataBase, primeiroMesBalao)
 
       planoPagamento.push({
         id: 'anuais',
         serie: 'ANUAIS',
-        inicio: formatarMesAno(dataPrimeiroBalao),
+        inicio: inicioAnuais,
         mesesOffset: primeiroMesBalao,
         quantidade: qtdBaloes,
         valorParcela: valorParcelaBalao,
@@ -617,7 +623,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     planoPagamento.push({
       id: 'unica',
       serie: 'ÚNICA',
-      inicio: formatarMesAno(dataUnica),
+      inicio: inicioUnica,
       mesesOffset: Math.max(1, mesesAteEntrega - 1),
       quantidade: 1,
       valorParcela: totalUnica,
@@ -628,13 +634,26 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     })
   }
 
-  // 6. FINANCIAMENTO
-  const totalFinanciamento = saldoRestanteFinanciar * 0.9985
-  const percFinancTotal = percFinancDecimal * 99.85
+  // 6. FINANCIAMENTO & 7. PERIODICIDADE
+  // Na tabela Vitacon (ex: U-0207 R$ 820.219,59): Financiamento é R$ 573.333,49 (69.899% ou ~99.857% do saldo financiado)
+  // e Periodicidade é R$ 820,22 (0,10% do valor do imóvel).
+  // A soma dos dois fecha exatamente o saldo restante a financiar (ex: 60% ou 70%).
+  const percPeriodicidadeDoTotal = 0.1 // 0.1% do imóvel
+  const totalPeriodicidade = Math.min(
+    saldoRestanteFinanciar,
+    valorImovelSemDecoracao * (percPeriodicidadeDoTotal / 100),
+  )
+  const totalFinanciamento = Math.max(0, saldoRestanteFinanciar - totalPeriodicidade)
+
+  const percFinancTotal =
+    valorImovelSemDecoracao > 0 ? (totalFinanciamento / valorImovelSemDecoracao) * 100 : 0
+  const percPeriodicidade =
+    valorImovelSemDecoracao > 0 ? (totalPeriodicidade / valorImovelSemDecoracao) * 100 : 0
+
   planoPagamento.push({
     id: 'financiamento',
     serie: 'FINANCIAMENTO',
-    inicio: formatarMesAno(dataFinanciamento),
+    inicio: inicioFinanciamento,
     mesesOffset: mesesAteEntrega,
     quantidade: 1,
     valorParcela: totalFinanciamento,
@@ -644,13 +663,10 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
     fase: 'Financiamento',
   })
 
-  // 7. PERIODICIDADE
-  const totalPeriodicidade = saldoRestanteFinanciar * 0.0015
-  const percPeriodicidade = percFinancDecimal * 0.15
   planoPagamento.push({
     id: 'periodicidade',
     serie: 'PERIODICIDADE',
-    inicio: formatarMesAno(dataPeriodicidade),
+    inicio: inicioPeriodicidade,
     mesesOffset: mesesAteEntrega + 1,
     quantidade: 1,
     valorParcela: totalPeriodicidade,
@@ -719,6 +735,7 @@ export function calcularSimulacaoCompleta(params: InputSimulacaoAvancada): Resul
       valorAtoManual: configPlano?.valorAtoManual,
       valorUnicaManual: configPlano?.valorUnicaManual,
       valorParcelaMensalManual: configPlano?.valorParcelaMensalManual,
+      datasEspecificas: configPlano?.datasEspecificas,
     },
     planoPagamento,
 

@@ -239,6 +239,38 @@ export function PlanoPagamentoTable({
           </div>
         )}
 
+        {/* Banner com Datas Oficiais Fixadas da Tabela R2V se existirem */}
+        {configPlano.datasEspecificas && (
+          <div className="rounded-xl bg-emerald-50/70 p-2.5 border border-emerald-200 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 font-semibold">
+              <Badge className="bg-emerald-700 text-white text-[10px] px-1.5 py-0">
+                Tabela Oficial
+              </Badge>
+              <span>Fluxo com datas fixadas da tabela R2V João Ramalho</span>
+            </div>
+            <div className="text-[11px] text-emerald-800 flex flex-wrap gap-x-3 gap-y-1">
+              <span>
+                Ato: <strong>{configPlano.datasEspecificas.dataAto}</strong>
+              </span>
+              <span>
+                Sinal: <strong>{configPlano.datasEspecificas.dataSinal}</strong>
+              </span>
+              <span>
+                Mensal: <strong>{configPlano.datasEspecificas.dataMensal}</strong>
+              </span>
+              <span>
+                Anual: <strong>{configPlano.datasEspecificas.dataAnual}</strong>
+              </span>
+              <span>
+                Única: <strong>{configPlano.datasEspecificas.dataUnica}</strong>
+              </span>
+              <span>
+                Financ: <strong>{configPlano.datasEspecificas.dataFinanciamento}</strong>
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Linha dos 3 Controles Mestres: Meses até entrega, Parcelas mensais, Balões anuais */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* 1. Meses restantes até a entrega (Parâmetro Mestre com Override) */}

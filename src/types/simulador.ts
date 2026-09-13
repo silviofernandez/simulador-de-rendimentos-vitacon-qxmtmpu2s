@@ -32,6 +32,16 @@ export interface BalaoConfig {
   valorManual?: number
 }
 
+export interface DatasEspecificasPlano {
+  dataAto?: string // ex: "10/09/2026"
+  dataSinal?: string // ex: "10/10/2026"
+  dataMensal?: string // ex: "10/01/2027"
+  dataAnual?: string // ex: "10/09/2027"
+  dataUnica?: string // ex: "10/12/2029"
+  dataFinanciamento?: string // ex: "30/01/2030"
+  dataPeriodicidade?: string // ex: "28/02/2030"
+}
+
 export interface ConfigPlanoPagamento {
   // Prazos mestres
   mesesAteEntrega: number // ex: 22 (parâmetro mestre)
@@ -39,7 +49,7 @@ export interface ConfigPlanoPagamento {
   prazoTotalObraMeses: number // prazo original/total da obra do lançamento (ex: 24, 36)
 
   // Quantidades de parcelas
-  qtdMensais: number // ex: 22 ou 36
+  qtdMensais: number // ex: 22 ou 35
   qtdSinais: number // ex: 3
   qtdBaloes: number // ex: 2 ou 3
 
@@ -57,6 +67,9 @@ export interface ConfigPlanoPagamento {
   valorAtoManual?: number
   valorUnicaManual?: number
   valorParcelaMensalManual?: number
+
+  // Datas fixadas / específicas vindas de tabela oficial
+  datasEspecificas?: DatasEspecificasPlano
 }
 
 export interface CustosOperacionaisDetalhados {
