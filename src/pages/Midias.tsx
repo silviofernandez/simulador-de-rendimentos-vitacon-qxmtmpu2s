@@ -47,6 +47,7 @@ const CATEGORIAS: CategoriaMidia[] = [
   'Planta',
   'Foto',
   'Tabela',
+  'Book',
   'Outros',
 ]
 

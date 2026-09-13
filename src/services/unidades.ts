@@ -1,5 +1,5 @@
 import pb from '@/lib/pocketbase/client'
-import { UnidadeRecord } from '@/types/simulador'
+import { UnidadeRecord, TipologiaUnidade, StatusUnidade } from '@/types/simulador'
 
 export async function listarUnidades(empreendimento?: string): Promise<UnidadeRecord[]> {
   const filter = empreendimento ? `empreendimento = "${empreendimento.replace(/"/g, '\\"')}"` : ''
@@ -35,6 +35,100 @@ export interface ImportResult {
   sucesso: number
   falhas: number
   erros: string[]
+}
+
+export interface SalvarUnidadesLoteOptions {
+  substituirExistentes?: boolean
+}
+
+/**
+ * Salva uma lista estruturada de unidades (já revisada pelo usuário),
+ * com opção de substituir todas as existentes do empreendimento ou fazer upsert.
+ */
+export async function salvarListaUnidadesEmpreendimento(
+  empreendimento: string,
+  unidades: Array<{
+    unidade: string
+    andar?: number
+    tipologia: TipologiaUnidade
+    metragem: number
+    valor: number
+    status?: StatusUnidade
+    valor_diaria?: number
+    observacoes?: string
+  }>,
+  options: SalvarUnidadesLoteOptions = {},
+): Promise<ImportResult> {
+  const empNome = empreendimento.trim()
+  let sucesso = 0
+  let falhas = 0
+  const erros: string[] = []
+
+  // Se solicitado substituir existentes, remove as unidades anteriores deste empreendimento
+  if (options.substituirExistentes) {
+    try {
+      const anteriores = await pb.collection('unidades').getFullList<UnidadeRecord>({
+        filter: `empreendimento = "${empNome.replace(/"/g, '\\"')}"`,
+      })
+      for (const ant of anteriores) {
+        try {
+          await pb.collection('unidades').delete(ant.id)
+        } catch (e) {
+          console.warn('Erro ao remover unidade antiga', ant.id, e)
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar unidades anteriores', e)
+    }
+  }
+
+  // Buscar mapa de existentes atuais se não substituiu tudo
+  const existentes = options.substituirExistentes
+    ? []
+    : await pb.collection('unidades').getFullList<UnidadeRecord>({
+        filter: `empreendimento = "${empNome.replace(/"/g, '\\"')}"`,
+      })
+  const existentesMap = new Map<string, string>()
+  existentes.forEach((u) => existentesMap.set(u.unidade.trim().toUpperCase(), u.id))
+
+  for (let i = 0; i < unidades.length; i++) {
+    const u = unidades[i]
+    const uNum = u.unidade.trim()
+    if (!uNum) {
+      falhas++
+      erros.push(`Linha ${i + 1}: número de unidade vazio`)
+      continue
+    }
+
+    try {
+      const existingId = existentesMap.get(uNum.toUpperCase())
+      const dados = {
+        empreendimento: empNome,
+        unidade: uNum,
+        andar: u.andar,
+        tipologia: u.tipologia,
+        metragem: u.metragem,
+        valor: u.valor,
+        status: u.status || 'disponivel',
+        valor_diaria: u.valor_diaria,
+        observacoes: u.observacoes || '',
+      }
+
+      if (existingId) {
+        await pb.collection('unidades').update(existingId, dados)
+      } else {
+        const created = await pb.collection('unidades').create<UnidadeRecord>(dados)
+        existentesMap.set(uNum.toUpperCase(), created.id)
+      }
+      sucesso++
+    } catch (err: unknown) {
+      falhas++
+      const msg = err instanceof Error ? err.message : String(err)
+      erros.push(`Unidade ${uNum}: ${msg}`)
+    }
+  }
+
+  return { sucesso, falhas, erros }
 }
 
 /**

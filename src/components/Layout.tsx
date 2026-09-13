@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Users,
   ShieldCheck,
+  PlusCircle,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,11 @@ export default function Layout() {
   ]
 
   if (isAdmin) {
+    navItems.push({
+      label: 'Novo Empreendimento',
+      path: '/empreendimentos/novo',
+      icon: PlusCircle,
+    })
     navItems.push({
       label: 'Usuários (Admin)',
       path: '/admin/usuarios',
@@ -228,7 +234,7 @@ export default function Layout() {
       {/* Mobile Bottom Navigation Bar (Fixed) */}
       {!isAuthPage && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E3DFD6] bg-white/95 backdrop-blur-md md:hidden">
-          <div className={`grid h-16 ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          <div className={`grid h-16 ${isAdmin ? 'grid-cols-6' : 'grid-cols-4'}`}>
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path

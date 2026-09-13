@@ -5,6 +5,8 @@ export interface EmpreendimentoRecord {
   bairro: string
   valor_diaria: number
   valor_m2: number
+  meses_ate_entrega?: number
+  descricao?: string
   created?: string
   updated?: string
 }
@@ -212,7 +214,13 @@ export interface UnidadeRecord {
   updated?: string
 }
 
-export type CategoriaMidia = 'Mapa de disponibilidade' | 'Planta' | 'Foto' | 'Tabela' | 'Outros'
+export type CategoriaMidia =
+  | 'Mapa de disponibilidade'
+  | 'Planta'
+  | 'Foto'
+  | 'Tabela'
+  | 'Book'
+  | 'Outros'
 
 export interface MidiaRecord {
   id: string

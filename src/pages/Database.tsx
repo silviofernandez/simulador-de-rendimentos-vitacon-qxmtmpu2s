@@ -235,12 +235,26 @@ export default function DatabasePage({ empreendimentos, isLoading }: DatabasePro
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#1F2A24]">Base de Dados Vitacon</h1>
-        <p className="text-sm text-[#5E6E64]">
-          Portfólio de empreendimentos e dados de referência de diárias por bairro carregados em
-          tempo real do PocketBase.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E3DFD6] pb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#1F2A24]">
+            Base de Dados Vitacon
+          </h1>
+          <p className="text-sm text-[#5E6E64]">
+            Portfólio de empreendimentos e dados de referência de diárias por bairro carregados em
+            tempo real do PocketBase.
+          </p>
+        </div>
+
+        {user && (
+          <Button
+            onClick={() => navigate('/empreendimentos/novo')}
+            className="rounded-xl bg-[#0F6B4F] hover:bg-[#0B5740] text-white text-xs font-semibold gap-1.5 shadow-md shadow-[#0F6B4F]/20 h-10 px-4 self-start sm:self-auto"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Empreendimento</span>
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="empreendimentos" className="w-full">

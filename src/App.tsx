@@ -13,6 +13,7 @@ import SimulacoesPage from '@/pages/Simulacoes'
 import DatabasePage from '@/pages/Database'
 import MidiasPage from '@/pages/Midias'
 import AdminUsuariosPage from '@/pages/AdminUsuarios'
+import NovoEmpreendimentoPage from '@/pages/NovoEmpreendimento'
 import AuthPage from '@/pages/Auth'
 import NotFound from '@/pages/NotFound'
 
@@ -74,6 +75,14 @@ export default function App() {
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminUsuariosPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/empreendimentos/novo"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <NovoEmpreendimentoPage />
                   </ProtectedRoute>
                 }
               />

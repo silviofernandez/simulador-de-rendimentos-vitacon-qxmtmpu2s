@@ -23,3 +23,23 @@ export async function obterEmpreendimentoPorId(id: string): Promise<Empreendimen
     return null
   }
 }
+
+export async function criarEmpreendimento(
+  dados: Omit<EmpreendimentoRecord, 'id' | 'created' | 'updated'>,
+): Promise<EmpreendimentoRecord> {
+  const record = await pb.collection('empreendimentos').create<EmpreendimentoRecord>(dados)
+  return record
+}
+
+export async function atualizarEmpreendimento(
+  id: string,
+  dados: Partial<EmpreendimentoRecord>,
+): Promise<EmpreendimentoRecord> {
+  const record = await pb.collection('empreendimentos').update<EmpreendimentoRecord>(id, dados)
+  return record
+}
+
+export async function excluirEmpreendimento(id: string): Promise<boolean> {
+  await pb.collection('empreendimentos').delete(id)
+  return true
+}

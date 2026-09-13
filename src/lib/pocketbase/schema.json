@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T21:15:24.343Z",
+  "generatedAt": "2026-09-13T21:30:41.272Z",
   "collections": [
     {
       "name": "users",
@@ -63,9 +63,9 @@
       "apiRules": {
         "list": "",
         "view": "",
-        "create": null,
-        "update": null,
-        "delete": null
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
       },
       "fields": [
         {
@@ -111,6 +111,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "meses_ate_entrega",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
